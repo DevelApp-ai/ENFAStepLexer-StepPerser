@@ -44,10 +44,21 @@ namespace ENFA_Parser
         NegateWordBoundary,
         StartOfLine,
         EndOfLine,
+        StartOfString,      // \A
+        EndOfString,        // \Z  
+        AbsoluteEndOfString, // \z
+        ContinueFromPreviousMatch, // \G
+        AnyUnicodeNewline,  // \R
         ExitContext,
         BackReference,
         GroupingStart,
-        GroupingEnd
+        GroupingEnd,
+        UnicodeProperty,    // \p{...}
+        NegateUnicodeProperty, // \P{...}
+        PosixCharClass,     // [:alpha:], etc.
+        NegatePosixCharClass,
+        UnicodeCodePoint,   // \x{...}
+        ControlCharacter    // \c[A-Z]
     }
 
     public enum GrammarTransitionType

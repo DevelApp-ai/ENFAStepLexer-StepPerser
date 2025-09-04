@@ -496,6 +496,151 @@ namespace ENFA_Parser
                             lastState.AddTransition(activeTransition);
                             lastState = nextState;
                             break;
+                        case 'A':
+                            nextState = lastState.NewState(RegexTransitionType.StartOfString.ToString(), StateType.Transition);
+                            activeTransition = lastState.NewRegexTransition(RegexTransitionType.StartOfString, nextState);
+                            lastState.AddTransition(activeTransition);
+                            lastState = nextState;
+                            break;
+                        case 'Z':
+                            nextState = lastState.NewState(RegexTransitionType.EndOfString.ToString(), StateType.Transition);
+                            activeTransition = lastState.NewRegexTransition(RegexTransitionType.EndOfString, nextState);
+                            lastState.AddTransition(activeTransition);
+                            lastState = nextState;
+                            break;
+                        case 'z':
+                            nextState = lastState.NewState(RegexTransitionType.AbsoluteEndOfString.ToString(), StateType.Transition);
+                            activeTransition = lastState.NewRegexTransition(RegexTransitionType.AbsoluteEndOfString, nextState);
+                            lastState.AddTransition(activeTransition);
+                            lastState = nextState;
+                            break;
+                        case 'G':
+                            nextState = lastState.NewState(RegexTransitionType.ContinueFromPreviousMatch.ToString(), StateType.Transition);
+                            activeTransition = lastState.NewRegexTransition(RegexTransitionType.ContinueFromPreviousMatch, nextState);
+                            lastState.AddTransition(activeTransition);
+                            lastState = nextState;
+                            break;
+                        case 'R':
+                            nextState = lastState.NewState(RegexTransitionType.AnyUnicodeNewline.ToString(), StateType.Transition);
+                            activeTransition = lastState.NewRegexTransition(RegexTransitionType.AnyUnicodeNewline, nextState);
+                            lastState.AddTransition(activeTransition);
+                            lastState = nextState;
+                            break;
+                        case 'p':
+                            /* Unicode property like \p{L} or \p{Letter} */
+                            if (tempNextChar.HasValue && tempNextChar.Value == Constants.LeftCurlyBracket)
+                            {
+                                /* Consume Left Curly Bracket */
+                                ConsumeNextChar(reader);
+                                string propertyName = GetStringUntilChar(reader, new char[] { Constants.RightCurlyBracket }, out char matchedChar);
+                                if (string.IsNullOrEmpty(propertyName))
+                                {
+                                    ThrowBuildException("Unicode property name cannot be empty");
+                                }
+                                nextState = lastState.NewState($"Unicode Property {propertyName}", StateType.Transition);
+                                activeTransition = lastState.NewRegexTransition(RegexTransitionType.UnicodeProperty, nextState);
+                                (activeTransition as ENFA_Regex_Transition).UnicodeProperty = propertyName;
+                                lastState.AddTransition(activeTransition);
+                                lastState = nextState;
+                            }
+                            else
+                            {
+                                ThrowBuildException("Unicode property missing opening brace");
+                            }
+                            break;
+                        case 'P':
+                            /* Negated Unicode property like \P{L} or \P{Letter} */
+                            if (tempNextChar.HasValue && tempNextChar.Value == Constants.LeftCurlyBracket)
+                            {
+                                /* Consume Left Curly Bracket */
+                                ConsumeNextChar(reader);
+                                string propertyName = GetStringUntilChar(reader, new char[] { Constants.RightCurlyBracket }, out char matchedChar);
+                                if (string.IsNullOrEmpty(propertyName))
+                                {
+                                    ThrowBuildException("Unicode property name cannot be empty");
+                                }
+                                nextState = lastState.NewState($"Negated Unicode Property {propertyName}", StateType.Transition);
+                                activeTransition = lastState.NewRegexTransition(RegexTransitionType.NegateUnicodeProperty, nextState);
+                                (activeTransition as ENFA_Regex_Transition).UnicodeProperty = propertyName;
+                                lastState.AddTransition(activeTransition);
+                                lastState = nextState;
+                            }
+                            else
+                            {
+                                ThrowBuildException("Unicode property missing opening brace");
+                            }
+                            break;
+                        case 'x':
+                            /* Hexadecimal character codes \x41 or \x{0041} */
+                            if (tempNextChar.HasValue && tempNextChar.Value == Constants.LeftCurlyBracket)
+                            {
+                                /* Unicode code point \x{...} */
+                                ConsumeNextChar(reader);
+                                string hexValue = GetStringUntilChar(reader, new char[] { Constants.RightCurlyBracket }, out char matchedChar);
+                                if (string.IsNullOrEmpty(hexValue))
+                                {
+                                    ThrowBuildException("Unicode code point value cannot be empty");
+                                }
+                                if (int.TryParse(hexValue, System.Globalization.NumberStyles.HexNumber, null, out int codePoint))
+                                {
+                                    nextState = lastState.NewState($"Unicode U+{codePoint:X4}", StateType.Transition);
+                                    activeTransition = lastState.NewRegexTransition(RegexTransitionType.UnicodeCodePoint, nextState);
+                                    (activeTransition as ENFA_Regex_Transition).UnicodeCodePoint = codePoint;
+                                    lastState.AddTransition(activeTransition);
+                                    lastState = nextState;
+                                }
+                                else
+                                {
+                                    ThrowBuildException("Invalid hexadecimal unicode code point");
+                                }
+                            }
+                            else
+                            {
+                                /* Traditional hex escape \x41 - consume next 2 characters */
+                                string hexChars = "";
+                                for (int i = 0; i < 2; i++)
+                                {
+                                    char? hexChar = NextCharInStream(reader);
+                                    if (hexChar.HasValue && Uri.IsHexDigit(hexChar.Value))
+                                    {
+                                        hexChars += hexChar.Value;
+                                    }
+                                    else
+                                    {
+                                        ThrowBuildException("Invalid hexadecimal escape sequence");
+                                    }
+                                }
+                                if (int.TryParse(hexChars, System.Globalization.NumberStyles.HexNumber, null, out int charCode))
+                                {
+                                    nextState = lastState.NewState($"Hex Char \\x{charCode:X2}", StateType.Transition);
+                                    activeTransition = lastState.NewRegexTransition(RegexTransitionType.Literal, nextState);
+                                    (activeTransition as ENFA_Regex_Transition).AddLiteral((char)charCode);
+                                    lastState.AddTransition(activeTransition);
+                                    lastState = nextState;
+                                }
+                                else
+                                {
+                                    ThrowBuildException("Invalid hexadecimal character code");
+                                }
+                            }
+                            break;
+                        case 'c':
+                            /* Control character \cA-\cZ */
+                            char? controlChar = NextCharInStream(reader);
+                            if (controlChar.HasValue && controlChar.Value >= 'A' && controlChar.Value <= 'Z')
+                            {
+                                char ctrlValue = (char)(controlChar.Value - 'A' + 1);
+                                nextState = lastState.NewState($"Control \\c{controlChar.Value}", StateType.Transition);
+                                activeTransition = lastState.NewRegexTransition(RegexTransitionType.ControlCharacter, nextState);
+                                (activeTransition as ENFA_Regex_Transition).ControlCharacter = ctrlValue;
+                                lastState.AddTransition(activeTransition);
+                                lastState = nextState;
+                            }
+                            else
+                            {
+                                ThrowBuildException("Control character must be A-Z");
+                            }
+                            break;
                         case 'k':
                             /* Named back reference like \k<Bartho> */
                             string groupName = null;
@@ -750,7 +895,25 @@ namespace ENFA_Parser
                     }
                     else
                     {
-                        if(tempNextChar.HasValue && tempNextChar.Value == Constants.HyphenMinusSign)
+                        /* Check for POSIX character classes like [:alpha:] */
+                        if (nextChar.Value == Constants.Colon && tempNextChar.HasValue)
+                        {
+                            /* Look for POSIX character class [:classname:] */
+                            var originalPos = reader.BaseStream.Position;
+                            string posixClass = GetPosixCharacterClass(reader);
+                            if (!string.IsNullOrEmpty(posixClass))
+                            {
+                                /* Valid POSIX character class found */
+                                AddPosixCharacterClass(activeTransition, posixClass);
+                            }
+                            else
+                            {
+                                /* Not a POSIX class, reset and treat as literal colon */
+                                reader.BaseStream.Position = originalPos;
+                                activeTransition.AddLiteral(nextChar.Value);
+                            }
+                        }
+                        else if(tempNextChar.HasValue && tempNextChar.Value == Constants.HyphenMinusSign)
                         {
                             /* Char range */
                             ConsumeNextChar(reader);// Consume Hyphen Minus Sign
@@ -802,6 +965,106 @@ namespace ENFA_Parser
                 char next = (char)reader.Read();
                 _matchedCharInRegexBuild.Add(next);
                 return next;
+            }
+        }
+
+        private string GetPosixCharacterClass(StreamReader reader)
+        {
+            /* Try to read a POSIX character class like [:alpha:] */
+            StringBuilder className = new StringBuilder();
+            char? ch = NextCharInStream(reader);
+            
+            /* Look for opening bracket */
+            if (ch != '[')
+            {
+                return null; /* Not a POSIX class */
+            }
+            
+            /* Read characters until closing :] */
+            while ((ch = NextCharInStream(reader)) != null)
+            {
+                if (ch == ':')
+                {
+                    char? nextCh = PeekNextChar(reader);
+                    if (nextCh == ']')
+                    {
+                        ConsumeNextChar(reader); /* Consume the ] */
+                        return className.ToString();
+                    }
+                    else
+                    {
+                        className.Append(ch);
+                    }
+                }
+                else
+                {
+                    className.Append(ch);
+                }
+            }
+            
+            return null; /* Incomplete POSIX class */
+        }
+
+        private void AddPosixCharacterClass(ENFA_Regex_Transition activeTransition, string posixClass)
+        {
+            /* Add characters based on POSIX character class */
+            switch (posixClass.ToLower())
+            {
+                case "alpha":
+                    for (char c = 'a'; c <= 'z'; c++) activeTransition.AddLiteral(c);
+                    for (char c = 'A'; c <= 'Z'; c++) activeTransition.AddLiteral(c);
+                    break;
+                case "alnum":
+                    for (char c = 'a'; c <= 'z'; c++) activeTransition.AddLiteral(c);
+                    for (char c = 'A'; c <= 'Z'; c++) activeTransition.AddLiteral(c);
+                    for (char c = '0'; c <= '9'; c++) activeTransition.AddLiteral(c);
+                    break;
+                case "digit":
+                    for (char c = '0'; c <= '9'; c++) activeTransition.AddLiteral(c);
+                    break;
+                case "lower":
+                    for (char c = 'a'; c <= 'z'; c++) activeTransition.AddLiteral(c);
+                    break;
+                case "upper":
+                    for (char c = 'A'; c <= 'Z'; c++) activeTransition.AddLiteral(c);
+                    break;
+                case "space":
+                    activeTransition.AddLiteral(' ');
+                    activeTransition.AddLiteral('\t');
+                    activeTransition.AddLiteral('\n');
+                    activeTransition.AddLiteral('\r');
+                    activeTransition.AddLiteral('\f');
+                    activeTransition.AddLiteral('\v');
+                    break;
+                case "blank":
+                    activeTransition.AddLiteral(' ');
+                    activeTransition.AddLiteral('\t');
+                    break;
+                case "punct":
+                    string punctuation = "!\"#$%&'()*+,-./:;<=>?@[\\]^_`{|}~";
+                    foreach (char c in punctuation)
+                    {
+                        activeTransition.AddLiteral(c);
+                    }
+                    break;
+                case "xdigit":
+                    for (char c = '0'; c <= '9'; c++) activeTransition.AddLiteral(c);
+                    for (char c = 'a'; c <= 'f'; c++) activeTransition.AddLiteral(c);
+                    for (char c = 'A'; c <= 'F'; c++) activeTransition.AddLiteral(c);
+                    break;
+                case "cntrl":
+                    for (int i = 0; i <= 31; i++) activeTransition.AddLiteral((char)i);
+                    activeTransition.AddLiteral((char)127); // DEL
+                    break;
+                case "graph":
+                    for (int i = 33; i <= 126; i++) activeTransition.AddLiteral((char)i);
+                    break;
+                case "print":
+                    for (int i = 32; i <= 126; i++) activeTransition.AddLiteral((char)i);
+                    break;
+                default:
+                    ThrowBuildException($"Unknown POSIX character class: {posixClass}");
+                    break;
             }
         }
     }

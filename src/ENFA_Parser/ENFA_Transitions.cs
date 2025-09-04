@@ -10,6 +10,10 @@ namespace ENFA_Parser
     {
         private RegexTransitionType _transitionType;
         private List<char> _literals;
+        private string? _unicodeProperty;
+        private string? _posixCharClass;
+        private int _unicodeCodePoint;
+        private char _controlCharacter;
 
         public ENFA_Regex_Transition(RegexTransitionType transitionType, ENFA_Base nextState) : base(nextState)
         {
@@ -33,6 +37,30 @@ namespace ENFA_Parser
             }
         }
 
+        public string? UnicodeProperty
+        {
+            get { return _unicodeProperty; }
+            set { _unicodeProperty = value; }
+        }
+
+        public string? PosixCharClass  
+        {
+            get { return _posixCharClass; }
+            set { _posixCharClass = value; }
+        }
+
+        public int UnicodeCodePoint
+        {
+            get { return _unicodeCodePoint; }
+            set { _unicodeCodePoint = value; }
+        }
+
+        public char ControlCharacter
+        {
+            get { return _controlCharacter; }
+            set { _controlCharacter = value; }
+        }
+
         public void AddLiteral(char literal)
         {
             _literals.Add(literal);
@@ -44,6 +72,18 @@ namespace ENFA_Parser
             if (_literals.Count > 0)
             {
                 result += "[" + string.Join(",", _literals) + "]";
+            }
+            if (!string.IsNullOrEmpty(_unicodeProperty))
+            {
+                result += "{" + _unicodeProperty + "}";
+            }
+            if (!string.IsNullOrEmpty(_posixCharClass))
+            {
+                result += "[:" + _posixCharClass + ":]";
+            }
+            if (_unicodeCodePoint > 0)
+            {
+                result += "\\x{" + _unicodeCodePoint.ToString("X") + "}";
             }
             return result;
         }
