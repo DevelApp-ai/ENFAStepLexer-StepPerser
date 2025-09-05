@@ -53,7 +53,7 @@ jobs:
         dotnet-version: ${{ env.DOTNET_VERSION }}
         
     - name: Cache NuGet packages
-      uses: actions/cache@v3
+      uses: actions/cache@v4
       with:
         path: ${{ env.NUGET_PACKAGES }}
         key: ${{ runner.os }}-nuget-${{ hashFiles('**/*.csproj') }}
@@ -70,7 +70,7 @@ jobs:
       run: dotnet test --configuration ${{ matrix.configuration }} --no-build --verbosity normal --collect:"XPlat Code Coverage" --logger trx --results-directory ./TestResults
       
     - name: Upload test results
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       if: always()
       with:
         name: test-results-${{ matrix.configuration }}
@@ -88,7 +88,7 @@ jobs:
           
     - name: Upload NuGet packages
       if: matrix.configuration == 'Release'
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: nuget-packages
         path: ./nupkg/*.nupkg
@@ -125,7 +125,7 @@ jobs:
         dotnet-version: ${{ env.DOTNET_VERSION }}
         
     - name: Download NuGet packages
-      uses: actions/download-artifact@v3
+      uses: actions/download-artifact@v4
       with:
         name: nuget-packages
         path: ./nupkg
@@ -159,7 +159,7 @@ jobs:
         dotnet-version: ${{ env.DOTNET_VERSION }}
         
     - name: Download NuGet packages
-      uses: actions/download-artifact@v3
+      uses: actions/download-artifact@v4
       with:
         name: nuget-packages
         path: ./nupkg
@@ -177,14 +177,12 @@ jobs:
         
     - name: Create GitHub Release
       if: needs.calculate-version.outputs.isPrerelease == 'false'
-      uses: actions/create-release@v1
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      with:
-        tag_name: v${{ needs.calculate-version.outputs.version }}
-        release_name: Release v${{ needs.calculate-version.outputs.version }}
-        body: |
-          ## Changes in v${{ needs.calculate-version.outputs.version }}
+      run: |
+        gh release create v${{ needs.calculate-version.outputs.version }} \
+          --title "Release v${{ needs.calculate-version.outputs.version }}" \
+          --notes "## Changes in v${{ needs.calculate-version.outputs.version }}
           
           ### vNext Architecture Features
           - ✨ Zero-copy parsing inspired by Cap'n Proto design patterns
@@ -199,6 +197,5 @@ jobs:
           - Advanced escape sequences
           - Improved error handling
           
-          See the [CHANGELOG](CHANGELOG.md) for detailed changes.
-        draft: false
-        prerelease: false
+          See the [CHANGELOG](CHANGELOG.md) for detailed changes." \
+          --target main
