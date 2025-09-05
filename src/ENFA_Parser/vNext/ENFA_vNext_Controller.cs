@@ -5,19 +5,28 @@ using System.Text;
 namespace ENFA_Parser.vNext
 {
     /// <summary>
-    /// Enhanced ENFA Controller implementing vNext architecture with zero-copy parsing
-    /// and two-phase processing to avoid regex complexity explosion
+    /// Parser types supported by vNext architecture
+    /// </summary>
+    public enum ParserType
+    {
+        Regex,
+        Grammar
+    }
+
+    /// <summary>
+    /// vNext ENFA Controller implementing zero-copy parsing and two-phase processing 
+    /// to avoid regex complexity explosion
     /// </summary>
     public class ENFA_vNext_Controller
     {
         private readonly TwoPhaseParser _twoPhaseParser;
-        private readonly ENFA_Controller _legacyController;
+        private readonly ParserType _parserType;
         private ReadOnlyMemory<byte> _inputBuffer;
         
         public ENFA_vNext_Controller(ParserType parserType)
         {
+            _parserType = parserType;
             _twoPhaseParser = new TwoPhaseParser();
-            _legacyController = new ENFA_Controller(parserType);
         }
         
         /// <summary>
@@ -36,7 +45,7 @@ namespace ENFA_Parser.vNext
             }
             
             // Phase 2: Disambiguation and ENFA construction
-            if (!_twoPhaseParser.Phase2_Disambiguation(_legacyController))
+            if (!_twoPhaseParser.Phase2_Disambiguation())
             {
                 return false;
             }
@@ -74,7 +83,7 @@ namespace ENFA_Parser.vNext
             }
             
             // Phase 2: Disambiguation and ENFA construction  
-            if (!_twoPhaseParser.Phase2_Disambiguation(_legacyController))
+            if (!_twoPhaseParser.Phase2_Disambiguation())
             {
                 return false;
             }
@@ -92,7 +101,7 @@ namespace ENFA_Parser.vNext
                 Phase1TokenCount = _twoPhaseParser.Phase1Results.Count,
                 AmbiguousTokenCount = CountAmbiguousTokens(),
                 MemoryUsed = _inputBuffer.Length,
-                PatternHierarchy = _legacyController.PrintHierarchy
+                PatternHierarchy = GetPatternHierarchy()
             };
         }
         
@@ -107,10 +116,33 @@ namespace ENFA_Parser.vNext
             return count;
         }
         
+        private string GetPatternHierarchy()
+        {
+            var sb = new StringBuilder();
+            sb.AppendLine("vNext Pattern Analysis:");
+            sb.AppendLine($"Parser Type: {_parserType}");
+            sb.AppendLine($"Phase 1 Tokens: {_twoPhaseParser.Phase1Results.Count}");
+            
+            for (int i = 0; i < _twoPhaseParser.Phase1Results.Count; i++)
+            {
+                var token = _twoPhaseParser.Phase1Results[i];
+                sb.AppendLine($"  Token {i}: {token.Type} - {token.Text}");
+                if (token.HasAlternatives)
+                {
+                    foreach (var alt in token.Alternatives!)
+                    {
+                        sb.AppendLine($"    Alt: {alt.Type} - {alt.Text}");
+                    }
+                }
+            }
+            
+            return sb.ToString();
+        }
+        
         /// <summary>
-        /// Access to underlying legacy controller for compatibility
+        /// Get parser type
         /// </summary>
-        public ENFA_Controller LegacyController => _legacyController;
+        public ParserType ParserType => _parserType;
         
         /// <summary>
         /// Access to phase 1 parsing results for debugging

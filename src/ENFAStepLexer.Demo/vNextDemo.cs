@@ -1,7 +1,6 @@
 using System;
 using System.Linq;
 using System.Text;
-using ENFA_Parser;
 using ENFA_Parser.vNext;
 
 namespace ENFAStepLexer.Demo

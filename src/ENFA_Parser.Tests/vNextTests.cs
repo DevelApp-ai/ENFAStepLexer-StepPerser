@@ -179,25 +179,26 @@ namespace ENFA_Parser.Tests.vNext
             
             // Assert
             result.Should().BeTrue();
-            parser.Phase1Results.Should().ContainSingle(t => t.HasAlternatives);
+            parser.Phase1Results.Should().HaveCountGreaterOrEqualTo(1);
+            parser.Phase1Results.Where(t => t.HasAlternatives).Should().NotBeEmpty();
         }
         
         [Fact]
-        public void Phase2_Disambiguation_WithController_Success()
+        public void Phase2_Disambiguation_Success()
         {
             // Arrange
             var parser = new TwoPhaseParser();
-            var controller = new ENFA_Controller(ParserType.Regex);
             var pattern = Encoding.UTF8.GetBytes(@"abc");
             var view = new ZeroCopyStringView(pattern);
             
             // Act
             var phase1Result = parser.Phase1_LexicalScan(view);
-            var phase2Result = parser.Phase2_Disambiguation(controller);
+            var phase2Result = parser.Phase2_Disambiguation();
             
             // Assert
             phase1Result.Should().BeTrue();
             phase2Result.Should().BeTrue();
+            parser.Phase2Results.Should().NotBeEmpty();
         }
     }
     

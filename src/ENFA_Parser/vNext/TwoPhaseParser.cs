@@ -44,7 +44,7 @@ namespace ENFA_Parser.vNext
     public class TwoPhaseParser
     {
         private readonly List<SplittableToken> _phase1Tokens = new();
-        private readonly List<ENFA_Base> _phase2States = new();
+        private readonly List<ParsedState> _phase2States = new();
         
         /// <summary>
         /// Phase 1: Fast lexical scanning with ambiguity detection
@@ -70,7 +70,7 @@ namespace ENFA_Parser.vNext
         /// <summary>
         /// Phase 2: Disambiguation and ENFA state machine construction
         /// </summary>
-        public bool Phase2_Disambiguation(ENFA_Controller controller)
+        public bool Phase2_Disambiguation()
         {
             _phase2States.Clear();
             
@@ -80,12 +80,12 @@ namespace ENFA_Parser.vNext
                 {
                     // Handle ambiguous tokens by choosing best alternative
                     var bestAlternative = SelectBestAlternative(token);
-                    if (!ProcessToken(bestAlternative, controller))
+                    if (!ProcessToken(bestAlternative))
                         return false;
                 }
                 else
                 {
-                    if (!ProcessToken(token, controller))
+                    if (!ProcessToken(token))
                         return false;
                 }
             }
@@ -141,10 +141,14 @@ namespace ENFA_Parser.vNext
             {
                 case (byte)'x':
                     // Could be \xFF or \x{FFFF} - ambiguous!
-                    token.Split(
-                        (input.Slice(position, 4), TokenType.HexEscape),  // \xFF
-                        (input.Slice(position, 6), TokenType.UnicodeEscape) // \x{FF}
-                    );
+                    // Only create alternatives if we have enough input
+                    if (position + 4 <= input.Length)
+                    {
+                        token.Split(
+                            (input.Slice(position, 4), TokenType.HexEscape),  // \xFF
+                            (position + 6 <= input.Length ? input.Slice(position, 6) : input.Slice(position, Math.Min(4, input.Length - position)), TokenType.UnicodeEscape) // \x{FF}
+                        );
+                    }
                     return (token, position + 2);
                     
                 case (byte)'p':
@@ -246,15 +250,34 @@ namespace ENFA_Parser.vNext
             return best;
         }
         
-        private bool ProcessToken(SplittableToken token, ENFA_Controller controller)
+        private bool ProcessToken(SplittableToken token)
         {
-            // Convert processed token to ENFA state
-            // This is where we interface with the existing ENFA system
-            // Implementation depends on specific token type
-            return true; // Placeholder
+            // Convert processed token to vNext parsed state
+            var state = new ParsedState
+            {
+                TokenType = token.Type,
+                Text = token.Text.ToString(),
+                Position = token.Position,
+                IsAmbiguous = token.HasAlternatives
+            };
+            
+            _phase2States.Add(state);
+            return true;
         }
         
         public IReadOnlyList<SplittableToken> Phase1Results => _phase1Tokens;
+        public IReadOnlyList<ParsedState> Phase2Results => _phase2States;
+    }
+    
+    /// <summary>
+    /// Represents a parsed state from Phase 2 processing
+    /// </summary>
+    public class ParsedState
+    {
+        public TokenType TokenType { get; init; }
+        public string Text { get; init; } = string.Empty;
+        public int Position { get; init; }
+        public bool IsAmbiguous { get; init; }
     }
     
     public enum TokenType
