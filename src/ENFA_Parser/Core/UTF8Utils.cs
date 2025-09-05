@@ -2,7 +2,7 @@ using System;
 using System.Buffers;
 using System.Text;
 
-namespace ENFA_Parser.vNext
+namespace ENFA_Parser.Core
 {
     /// <summary>
     /// UTF-8 processing utilities to avoid UTF-16 conversion overhead

@@ -113,7 +113,7 @@ jobs:
         dotnet list package --deprecated || true
 
   publish-github-packages:
-    if: github.event_name == 'push' || (github.event_name == 'pull_request' && github.event.pull_request.draft == false)
+    if: github.event_name == 'push' || github.event_name == 'pull_request'
     runs-on: ubuntu-latest
     needs: [calculate-version, build-and-test, security-scan]
     steps:

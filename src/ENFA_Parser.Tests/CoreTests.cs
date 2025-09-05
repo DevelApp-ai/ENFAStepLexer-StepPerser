@@ -1,9 +1,9 @@
 using Xunit;
 using FluentAssertions;
-using ENFA_Parser.vNext;
+using ENFA_Parser.Core;
 using System.Text;
 
-namespace ENFA_Parser.Tests.vNext
+namespace ENFA_Parser.Tests.Core
 {
     public class ZeroCopyStringViewTests
     {
@@ -202,13 +202,13 @@ namespace ENFA_Parser.Tests.vNext
         }
     }
     
-    public class ENFA_vNext_ControllerTests
+    public class PatternParserTests
     {
         [Fact]
         public void ParsePattern_SimplePattern_Success()
         {
             // Arrange
-            var controller = new ENFA_vNext_Controller(ParserType.Regex);
+            var controller = new PatternParser(ParserType.Regex);
             var pattern = @"\d{2,4}";
             
             // Act
@@ -226,7 +226,7 @@ namespace ENFA_Parser.Tests.vNext
         public void ParsePattern_UTF8Bytes_Success()
         {
             // Arrange
-            var controller = new ENFA_vNext_Controller(ParserType.Regex);
+            var controller = new PatternParser(ParserType.Regex);
             var utf8Pattern = Encoding.UTF8.GetBytes(@"[a-z]+");
             
             // Act
@@ -243,7 +243,7 @@ namespace ENFA_Parser.Tests.vNext
         public void GetResults_AfterParsing_ReturnsValidStatistics()
         {
             // Arrange
-            var controller = new ENFA_vNext_Controller(ParserType.Regex);
+            var controller = new PatternParser(ParserType.Regex);
             var pattern = @"\w+@\w+\.\w+"; // Email-like pattern
             
             // Act

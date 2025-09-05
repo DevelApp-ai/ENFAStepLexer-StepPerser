@@ -1,18 +1,18 @@
 using System;
 using System.Linq;
 using System.Text;
-using ENFA_Parser.vNext;
+using ENFA_Parser.Core;
 
 namespace ENFAStepLexer.Demo
 {
     /// <summary>
-    /// Demonstrates the vNext architecture with zero-copy parsing and two-phase processing
+    /// Demonstrates the modern architecture with zero-copy parsing and two-phase processing
     /// </summary>
-    public static class vNextDemo
+    public static class PatternParserDemo
     {
         public static void RunDemo()
         {
-            Console.WriteLine("=== ENFA vNext Architecture Demo ===");
+            Console.WriteLine("=== ENFA Pattern Parser Demo ===");
             Console.WriteLine("Zero-copy parsing with UTF-8 optimization and two-phase processing");
             Console.WriteLine();
             
@@ -29,7 +29,7 @@ namespace ENFAStepLexer.Demo
                 @"a{2,5}?b*c+?"                // Complex quantifiers (ambiguous!)
             };
             
-            var controller = new ENFA_vNext_Controller(ParserType.Regex);
+            var controller = new PatternParser(ParserType.Regex);
             
             foreach (var pattern in testPatterns)
             {
@@ -45,7 +45,7 @@ namespace ENFAStepLexer.Demo
             DemonstrateUTF8Processing();
         }
         
-        private static void DemonstrateZeroCopyParsing(ENFA_vNext_Controller controller, string pattern)
+        private static void DemonstrateZeroCopyParsing(PatternParser controller, string pattern)
         {
             try
             {
@@ -90,7 +90,7 @@ namespace ENFAStepLexer.Demo
             
             // vNext approach (UTF-8)
             var utf8Bytes = Encoding.UTF8.GetBytes(largePattern);
-            Console.WriteLine($"vNext UTF-8 memory: {utf8Bytes.Length} bytes");
+            Console.WriteLine($"Modern UTF-8 memory: {utf8Bytes.Length} bytes");
             Console.WriteLine($"Memory savings: {((double)(traditionalMemory - utf8Bytes.Length) / traditionalMemory):P1}");
             
             // Zero-copy slicing demonstration

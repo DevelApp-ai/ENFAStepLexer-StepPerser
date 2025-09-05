@@ -1,7 +1,7 @@
 using System;
 using System.Collections.Generic;
 
-namespace ENFA_Parser.vNext
+namespace ENFA_Parser.Core
 {
     /// <summary>
     /// Represents a token that can be split into multiple alternatives during ambiguity resolution

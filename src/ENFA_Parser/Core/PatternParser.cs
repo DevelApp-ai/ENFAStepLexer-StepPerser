@@ -2,7 +2,7 @@ using System;
 using System.IO;
 using System.Text;
 
-namespace ENFA_Parser.vNext
+namespace ENFA_Parser.Core
 {
     /// <summary>
     /// Parser types supported by vNext architecture
@@ -14,16 +14,16 @@ namespace ENFA_Parser.vNext
     }
 
     /// <summary>
-    /// vNext ENFA Controller implementing zero-copy parsing and two-phase processing 
+    /// Parser controller implementing zero-copy parsing and two-phase processing 
     /// to avoid regex complexity explosion
     /// </summary>
-    public class ENFA_vNext_Controller
+    public class PatternParser
     {
         private readonly TwoPhaseParser _twoPhaseParser;
         private readonly ParserType _parserType;
         private ReadOnlyMemory<byte> _inputBuffer;
         
-        public ENFA_vNext_Controller(ParserType parserType)
+        public PatternParser(ParserType parserType)
         {
             _parserType = parserType;
             _twoPhaseParser = new TwoPhaseParser();
@@ -119,7 +119,7 @@ namespace ENFA_Parser.vNext
         private string GetPatternHierarchy()
         {
             var sb = new StringBuilder();
-            sb.AppendLine("vNext Pattern Analysis:");
+            sb.AppendLine("Pattern Analysis:");
             sb.AppendLine($"Parser Type: {_parserType}");
             sb.AppendLine($"Phase 1 Tokens: {_twoPhaseParser.Phase1Results.Count}");
             
@@ -151,7 +151,7 @@ namespace ENFA_Parser.vNext
     }
     
     /// <summary>
-    /// Results and statistics from vNext parsing
+    /// Results and statistics from parsing
     /// </summary>
     public class ParsingResult
     {

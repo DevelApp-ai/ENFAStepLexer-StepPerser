@@ -1,7 +1,7 @@
 using System;
 using System.Text;
 
-namespace ENFA_Parser.vNext
+namespace ENFA_Parser.Core
 {
     /// <summary>
     /// Zero-copy string view implementation inspired by Cap'n Proto design patterns.
