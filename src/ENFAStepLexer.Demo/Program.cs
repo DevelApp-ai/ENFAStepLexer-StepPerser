@@ -10,12 +10,34 @@ namespace ENFAStepLexer.Demo
         static void Main(string[] args)
         {
             Console.WriteLine("ENFAStepLexer-StepParser Demo");
-            Console.WriteLine("Enhanced PCRE2 Regex Support");
-            Console.WriteLine("============================");
+            Console.WriteLine("Enhanced PCRE2 Regex Support with vNext Architecture");
+            Console.WriteLine("====================================================");
             Console.WriteLine();
 
-            // Demonstrate various regex features
-            TestRegexFeatures();
+            Console.WriteLine("Choose demo mode:");
+            Console.WriteLine("1. Original ENFA Parser");
+            Console.WriteLine("2. vNext Zero-Copy Architecture");
+            Console.WriteLine("3. Both (comparison)");
+            Console.Write("Enter choice (1-3): ");
+            
+            var choice = Console.ReadLine();
+            Console.WriteLine();
+            
+            switch (choice)
+            {
+                case "1":
+                    TestRegexFeatures();
+                    break;
+                case "2":
+                    vNextDemo.RunDemo();
+                    break;
+                case "3":
+                default:
+                    TestRegexFeatures();
+                    Console.WriteLine("\n" + new string('=', 60) + "\n");
+                    vNextDemo.RunDemo();
+                    break;
+            }
             
             Console.WriteLine("\nPress any key to exit...");
             Console.ReadKey();

@@ -5,6 +5,45 @@
     <LangVersion>latest</LangVersion>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
+    <GeneratePackageOnBuild>false</GeneratePackageOnBuild>
+    
+    <!-- Package Information -->
+    <PackageId>ENFAStepLexer.StepParser</PackageId>
+    <Title>ENFA Step Lexer and Parser with vNext Architecture</Title>
+    <Description>A modern, extensible ENFA (Extended Non-deterministic Finite Automaton) based regex parser with enhanced PCRE2 support, zero-copy parsing, and two-phase processing architecture inspired by Cap'n Proto design patterns.</Description>
+    <Authors>DevelApp-ai</Authors>
+    <Company>DevelApp-ai</Company>
+    <Product>ENFAStepLexer-StepParser</Product>
+    <Copyright>Copyright (c) 2024 DevelApp-ai</Copyright>
+    
+    <!-- Package Metadata -->
+    <PackageTags>regex;parser;lexer;enfa;pcre2;parsing;zero-copy;utf8;performance</PackageTags>
+    <PackageProjectUrl>https://github.com/DevelApp-ai/ENFAStepLexer-StepPerser</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/DevelApp-ai/ENFAStepLexer-StepPerser</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageRequireLicenseAcceptance>false</PackageRequireLicenseAcceptance>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    
+    <!-- Release Notes -->
+    <PackageReleaseNotes>
+      v2.0.0: 
+      - NEW: vNext architecture with zero-copy parsing
+      - NEW: Two-phase parsing to avoid regex complexity explosion  
+      - NEW: UTF-8 optimized text handling for memory efficiency
+      - NEW: Token splitting for ambiguity resolution
+      - ENHANCED: Extended PCRE2 support with 70+ features
+      - IMPROVED: Performance optimizations and modern .NET 8 features
+    </PackageReleaseNotes>
+    
+    <!-- Documentation -->
+    <DocumentationFile>bin\$(Configuration)\$(TargetFramework)\$(AssemblyName).xml</DocumentationFile>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
   </PropertyGroup>
+
+  <ItemGroup>
+    <None Include="..\..\README.md" Pack="true" PackagePath="\" />
+    <None Include="..\..\docs\**\*" Pack="true" PackagePath="docs\" />
+  </ItemGroup>
 
 </Project>

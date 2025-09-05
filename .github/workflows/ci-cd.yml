@@ -1,0 +1,204 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+    types: [opened, synchronize, reopened, ready_for_review]
+
+env:
+  DOTNET_VERSION: '8.0.x'
+  NUGET_PACKAGES: ${{ github.workspace }}/.nuget/packages
+
+jobs:
+  calculate-version:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.gitversion.outputs.SemVer }}
+      nugetVersion: ${{ steps.gitversion.outputs.NuGetVersionV2 }}
+      isPrerelease: ${{ steps.gitversion.outputs.CommitsSinceVersionSource != '0' || steps.gitversion.outputs.PreReleaseTag != '' }}
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+        
+    - name: Install GitVersion
+      uses: gittools/actions/gitversion/setup@v0.10.2
+      with:
+        versionSpec: '5.x'
+        
+    - name: Determine Version
+      id: gitversion
+      uses: gittools/actions/gitversion/execute@v0.10.2
+      with:
+        useConfigFile: true
+        configFilePath: GitVersion.yml
+
+  build-and-test:
+    runs-on: ubuntu-latest
+    needs: calculate-version
+    strategy:
+      matrix:
+        configuration: [Debug, Release]
+    
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+        
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: ${{ env.DOTNET_VERSION }}
+        
+    - name: Cache NuGet packages
+      uses: actions/cache@v3
+      with:
+        path: ${{ env.NUGET_PACKAGES }}
+        key: ${{ runner.os }}-nuget-${{ hashFiles('**/*.csproj') }}
+        restore-keys: |
+          ${{ runner.os }}-nuget-
+          
+    - name: Restore dependencies
+      run: dotnet restore
+      
+    - name: Build
+      run: dotnet build --configuration ${{ matrix.configuration }} --no-restore -p:Version=${{ needs.calculate-version.outputs.version }}
+      
+    - name: Test
+      run: dotnet test --configuration ${{ matrix.configuration }} --no-build --verbosity normal --collect:"XPlat Code Coverage" --logger trx --results-directory ./TestResults
+      
+    - name: Upload test results
+      uses: actions/upload-artifact@v3
+      if: always()
+      with:
+        name: test-results-${{ matrix.configuration }}
+        path: ./TestResults
+        
+    - name: Pack NuGet packages
+      if: matrix.configuration == 'Release'
+      run: |
+        dotnet pack src/ENFA_Parser/ENFA_Parser.csproj \
+          --configuration Release \
+          --no-build \
+          --output ./nupkg \
+          -p:PackageVersion=${{ needs.calculate-version.outputs.nugetVersion }} \
+          -p:Version=${{ needs.calculate-version.outputs.version }}
+          
+    - name: Upload NuGet packages
+      if: matrix.configuration == 'Release'
+      uses: actions/upload-artifact@v3
+      with:
+        name: nuget-packages
+        path: ./nupkg/*.nupkg
+
+  security-scan:
+    runs-on: ubuntu-latest
+    needs: build-and-test
+    steps:
+    - uses: actions/checkout@v4
+      
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: ${{ env.DOTNET_VERSION }}
+        
+    - name: Restore dependencies
+      run: dotnet restore
+      
+    - name: Security scan
+      run: |
+        dotnet list package --vulnerable --include-transitive || true
+        dotnet list package --deprecated || true
+
+  publish-github-packages:
+    if: github.event_name == 'push' || (github.event_name == 'pull_request' && github.event.pull_request.draft == false)
+    runs-on: ubuntu-latest
+    needs: [calculate-version, build-and-test, security-scan]
+    steps:
+    - uses: actions/checkout@v4
+      
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: ${{ env.DOTNET_VERSION }}
+        
+    - name: Download NuGet packages
+      uses: actions/download-artifact@v3
+      with:
+        name: nuget-packages
+        path: ./nupkg
+        
+    - name: Publish to GitHub Packages
+      run: |
+        dotnet nuget add source https://nuget.pkg.github.com/${{ github.repository_owner }}/index.json \
+          --name github \
+          --username ${{ github.repository_owner }} \
+          --password ${{ secrets.GITHUB_TOKEN }}
+          
+        for package in ./nupkg/*.nupkg; do
+          echo "Publishing $package to GitHub Packages..."
+          dotnet nuget push "$package" \
+            --source github \
+            --api-key ${{ secrets.GITHUB_TOKEN }} \
+            --skip-duplicate || echo "Package already exists, skipping..."
+        done
+
+  publish-nuget-org:
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    runs-on: ubuntu-latest
+    needs: [calculate-version, build-and-test, security-scan]
+    environment: production
+    steps:
+    - uses: actions/checkout@v4
+      
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: ${{ env.DOTNET_VERSION }}
+        
+    - name: Download NuGet packages
+      uses: actions/download-artifact@v3
+      with:
+        name: nuget-packages
+        path: ./nupkg
+        
+    - name: Publish to NuGet.org
+      if: needs.calculate-version.outputs.isPrerelease == 'false'
+      run: |
+        for package in ./nupkg/*.nupkg; do
+          echo "Publishing $package to NuGet.org..."
+          dotnet nuget push "$package" \
+            --source https://api.nuget.org/v3/index.json \
+            --api-key ${{ secrets.NUGET_API_KEY }} \
+            --skip-duplicate || echo "Package already exists, skipping..."
+        done
+        
+    - name: Create GitHub Release
+      if: needs.calculate-version.outputs.isPrerelease == 'false'
+      uses: actions/create-release@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        tag_name: v${{ needs.calculate-version.outputs.version }}
+        release_name: Release v${{ needs.calculate-version.outputs.version }}
+        body: |
+          ## Changes in v${{ needs.calculate-version.outputs.version }}
+          
+          ### vNext Architecture Features
+          - ✨ Zero-copy parsing inspired by Cap'n Proto design patterns
+          - ⚡ Two-phase parsing to avoid regex complexity explosion
+          - 🔀 Token splitting for ambiguity resolution in single pass
+          - 💾 UTF-8 optimized text handling for reduced memory usage
+          - 🏗️ Extensible architecture for future enhancements
+          
+          ### Enhanced PCRE2 Support
+          - Extended anchors and Unicode support
+          - POSIX character classes
+          - Advanced escape sequences
+          - Improved error handling
+          
+          See the [CHANGELOG](CHANGELOG.md) for detailed changes.
+        draft: false
+        prerelease: false
