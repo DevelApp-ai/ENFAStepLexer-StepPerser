@@ -19,14 +19,14 @@ namespace ENFA_Parser.Core
     /// </summary>
     public class PatternParser
     {
-        private readonly TwoPhaseParser _twoPhaseParser;
+        private readonly StepLexer _stepLexer;
         private readonly ParserType _parserType;
         private ReadOnlyMemory<byte> _inputBuffer;
         
         public PatternParser(ParserType parserType)
         {
             _parserType = parserType;
-            _twoPhaseParser = new TwoPhaseParser();
+            _stepLexer = new StepLexer();
         }
         
         /// <summary>
@@ -39,13 +39,13 @@ namespace ENFA_Parser.Core
             var inputView = new ZeroCopyStringView(_inputBuffer);
             
             // Phase 1: Fast lexical analysis with ambiguity detection
-            if (!_twoPhaseParser.Phase1_LexicalScan(inputView))
+            if (!_stepLexer.Phase1_LexicalScan(inputView))
             {
                 return false;
             }
             
             // Phase 2: Disambiguation and ENFA construction
-            if (!_twoPhaseParser.Phase2_Disambiguation())
+            if (!_stepLexer.Phase2_Disambiguation())
             {
                 return false;
             }
@@ -77,13 +77,13 @@ namespace ENFA_Parser.Core
             var inputView = new ZeroCopyStringView(_inputBuffer);
             
             // Phase 1: Fast lexical analysis
-            if (!_twoPhaseParser.Phase1_LexicalScan(inputView))
+            if (!_stepLexer.Phase1_LexicalScan(inputView))
             {
                 return false;
             }
             
             // Phase 2: Disambiguation and ENFA construction  
-            if (!_twoPhaseParser.Phase2_Disambiguation())
+            if (!_stepLexer.Phase2_Disambiguation())
             {
                 return false;
             }
@@ -98,7 +98,7 @@ namespace ENFA_Parser.Core
         {
             return new ParsingResult
             {
-                Phase1TokenCount = _twoPhaseParser.Phase1Results.Count,
+                Phase1TokenCount = _stepLexer.Phase1Results.Count,
                 AmbiguousTokenCount = CountAmbiguousTokens(),
                 MemoryUsed = _inputBuffer.Length,
                 PatternHierarchy = GetPatternHierarchy()
@@ -108,7 +108,7 @@ namespace ENFA_Parser.Core
         private int CountAmbiguousTokens()
         {
             int count = 0;
-            foreach (var token in _twoPhaseParser.Phase1Results)
+            foreach (var token in _stepLexer.Phase1Results)
             {
                 if (token.HasAlternatives)
                     count++;
@@ -121,11 +121,11 @@ namespace ENFA_Parser.Core
             var sb = new StringBuilder();
             sb.AppendLine("Pattern Analysis:");
             sb.AppendLine($"Parser Type: {_parserType}");
-            sb.AppendLine($"Phase 1 Tokens: {_twoPhaseParser.Phase1Results.Count}");
+            sb.AppendLine($"Phase 1 Tokens: {_stepLexer.Phase1Results.Count}");
             
-            for (int i = 0; i < _twoPhaseParser.Phase1Results.Count; i++)
+            for (int i = 0; i < _stepLexer.Phase1Results.Count; i++)
             {
-                var token = _twoPhaseParser.Phase1Results[i];
+                var token = _stepLexer.Phase1Results[i];
                 sb.AppendLine($"  Token {i}: {token.Type} - {token.Text}");
                 if (token.HasAlternatives)
                 {
@@ -147,7 +147,7 @@ namespace ENFA_Parser.Core
         /// <summary>
         /// Access to phase 1 parsing results for debugging
         /// </summary>
-        public TwoPhaseParser TwoPhaseParser => _twoPhaseParser;
+        public StepLexer StepLexer => _stepLexer;
     }
     
     /// <summary>

@@ -148,57 +148,57 @@ namespace ENFA_Parser.Tests.Core
         }
     }
     
-    public class TwoPhaseParserTests
+    public class StepLexerTwoPhaseTests
     {
         [Fact]
         public void Phase1_LexicalScan_SimplePattern_Success()
         {
             // Arrange
-            var parser = new TwoPhaseParser();
+            var lexer = new StepLexer();
             var pattern = Encoding.UTF8.GetBytes(@"\d+");
             var view = new ZeroCopyStringView(pattern);
             
             // Act
-            var result = parser.Phase1_LexicalScan(view);
+            var result = lexer.Phase1_LexicalScan(view);
             
             // Assert
             result.Should().BeTrue();
-            parser.Phase1Results.Should().NotBeEmpty();
+            lexer.Phase1Results.Should().NotBeEmpty();
         }
         
         [Fact]
         public void Phase1_LexicalScan_ComplexPattern_DetectsAmbiguity()
         {
             // Arrange
-            var parser = new TwoPhaseParser();
+            var lexer = new StepLexer();
             var pattern = Encoding.UTF8.GetBytes(@"\x{41}\xFF"); // Ambiguous hex patterns
             var view = new ZeroCopyStringView(pattern);
             
             // Act
-            var result = parser.Phase1_LexicalScan(view);
+            var result = lexer.Phase1_LexicalScan(view);
             
             // Assert
             result.Should().BeTrue();
-            parser.Phase1Results.Should().HaveCountGreaterOrEqualTo(1);
-            parser.Phase1Results.Where(t => t.HasAlternatives).Should().NotBeEmpty();
+            lexer.Phase1Results.Should().HaveCountGreaterOrEqualTo(1);
+            lexer.Phase1Results.Where(t => t.HasAlternatives).Should().NotBeEmpty();
         }
         
         [Fact]
         public void Phase2_Disambiguation_Success()
         {
             // Arrange
-            var parser = new TwoPhaseParser();
+            var lexer = new StepLexer();
             var pattern = Encoding.UTF8.GetBytes(@"abc");
             var view = new ZeroCopyStringView(pattern);
             
             // Act
-            var phase1Result = parser.Phase1_LexicalScan(view);
-            var phase2Result = parser.Phase2_Disambiguation();
+            var phase1Result = lexer.Phase1_LexicalScan(view);
+            var phase2Result = lexer.Phase2_Disambiguation();
             
             // Assert
             phase1Result.Should().BeTrue();
             phase2Result.Should().BeTrue();
-            parser.Phase2Results.Should().NotBeEmpty();
+            lexer.Phase2Results.Should().NotBeEmpty();
         }
     }
     
