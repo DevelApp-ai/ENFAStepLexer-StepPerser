@@ -1,13 +1,30 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using DevelApp.SplitLexer;
+using DevelApp.SplitLexer;  // Keep old namespace until we fix it
 using CognitiveGraph;
 
-namespace DevelApp.SplitParser
+namespace DevelApp.StepParser
 {
+    // TODO: Replace ParseNode with CognitiveGraph integration
+    // Keeping ParseNode temporarily until we understand CognitiveGraph API
+
+    /// <summary>
+    /// CognitiveGraph integration wrapper - to be implemented with actual CognitiveGraph types
+    /// </summary>
+    public interface ICognitiveGraphIntegration
+    {
+        // TODO: Replace with actual CognitiveGraph types once API is known
+        object CreateGraph();
+        object CreateNode(string type, string value, ICodeLocation location);
+        void AddNodeToGraph(object graph, object node);
+        void ConnectNodes(object parentNode, object childNode);
+        object GetBestParseResult(object graph);
+    }
+
     /// <summary>
     /// Parse tree node for AST construction
+    /// NOTE: This will be replaced with CognitiveGraph nodes
     /// </summary>
     public class ParseNode
     {
