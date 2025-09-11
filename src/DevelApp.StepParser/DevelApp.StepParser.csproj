@@ -8,12 +8,12 @@
     <GeneratePackageOnBuild>false</GeneratePackageOnBuild>
     
     <!-- Package Information -->
-    <PackageId>DevelApp.SplitParser</PackageId>
-    <Title>Split Parser - GLR-Style Multi-Path Parsing with CognitiveGraph Integration</Title>
+    <PackageId>DevelApp.StepParser</PackageId>
+    <Title>Step Parser - GLR-Style Multi-Path Parsing with CognitiveGraph Integration</Title>
     <Description>A modern parser implementation with GLR-style multi-path parsing, context-sensitive grammar support, and CognitiveGraph integration for advanced semantic analysis. Part of the GrammarForge step-parser architecture.</Description>
     <Authors>DevelApp-ai</Authors>
     <Company>DevelApp-ai</Company>
-    <Product>DevelApp.SplitParser</Product>
+    <Product>DevelApp.StepParser</Product>
     <Copyright>Copyright (c) 2024 DevelApp-ai</Copyright>
     
     <!-- Package Metadata -->
@@ -42,7 +42,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\DevelApp.SplitLexer\DevelApp.SplitLexer.csproj" />
+    <ProjectReference Include="..\DevelApp.StepLexer\DevelApp.StepLexer.csproj" />
     <PackageReference Include="DevelApp.CognitiveGraph" Version="1.0.0" />
   </ItemGroup>
 

@@ -24,7 +24,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\DevelApp.SplitParser\DevelApp.SplitParser.csproj" />
+    <ProjectReference Include="..\DevelApp.StepLexer\DevelApp.StepLexer.csproj" />
   </ItemGroup>
 
 </Project>

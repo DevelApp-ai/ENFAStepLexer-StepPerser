@@ -8,12 +8,12 @@
     <GeneratePackageOnBuild>false</GeneratePackageOnBuild>
     
     <!-- Package Information -->
-    <PackageId>DevelApp.SplitLexer</PackageId>
-    <Title>Split Lexer - Advanced UTF-8 Tokenization with Multi-Path Support</Title>
+    <PackageId>DevelApp.StepLexer</PackageId>
+    <Title>Step Lexer - Advanced UTF-8 Tokenization with Multi-Path Support</Title>
     <Description>A modern lexer implementation with zero-copy UTF-8 processing, two-phase regex pattern parsing, and multi-path tokenization for handling ambiguous input. Part of the GrammarForge step-parser architecture.</Description>
     <Authors>DevelApp-ai</Authors>
     <Company>DevelApp-ai</Company>
-    <Product>DevelApp.SplitLexer</Product>
+    <Product>DevelApp.StepLexer</Product>
     <Copyright>Copyright (c) 2024 DevelApp-ai</Copyright>
     
     <!-- Package Metadata -->

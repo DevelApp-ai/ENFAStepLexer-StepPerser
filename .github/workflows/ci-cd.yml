@@ -79,16 +79,16 @@ jobs:
     - name: Pack NuGet packages
       if: matrix.configuration == 'Release'
       run: |
-        # Pack DevelApp.SplitLexer
-        dotnet pack src/DevelApp.SplitLexer/DevelApp.SplitLexer.csproj \
+        # Pack DevelApp.StepLexer
+        dotnet pack src/DevelApp.StepLexer/DevelApp.StepLexer.csproj \
           --configuration Release \
           --no-build \
           --output ./nupkg \
           -p:PackageVersion=${{ needs.calculate-version.outputs.nugetVersion }} \
           -p:Version=${{ needs.calculate-version.outputs.version }}
         
-        # Pack DevelApp.SplitParser
-        dotnet pack src/DevelApp.SplitParser/DevelApp.SplitParser.csproj \
+        # Pack DevelApp.StepParser
+        dotnet pack src/DevelApp.StepParser/DevelApp.StepParser.csproj \
           --configuration Release \
           --no-build \
           --output ./nupkg \
@@ -197,8 +197,8 @@ jobs:
           --notes "## Changes in v${{ needs.calculate-version.outputs.version }}
           
           ### New Package Architecture
-          - 📦 **DevelApp.SplitLexer** - Advanced UTF-8 tokenization with multi-path support
-          - 📦 **DevelApp.SplitParser** - GLR-style multi-path parsing with CognitiveGraph integration
+          - 📦 **DevelApp.StepLexer** - Advanced UTF-8 tokenization with multi-path support
+          - 📦 **DevelApp.StepParser** - GLR-style multi-path parsing with CognitiveGraph integration
           
           ### GrammarForge Step-Parser Features
           - ✨ StepLexer with unified regex pattern parsing and source tokenization
@@ -212,7 +212,7 @@ jobs:
           
           ### Breaking Changes
           - Replaced single ENFAStepLexer.StepParser package with split architecture
-          - Updated namespace from ENFA_Parser.Core to DevelApp.SplitLexer/DevelApp.SplitParser
+          - Updated namespace from ENFA_Parser.Core to DevelApp.StepLexer/DevelApp.StepParser
           - Integrated AST functionality with DevelApp.CognitiveGraph
           
           See the [CHANGELOG](CHANGELOG.md) for detailed changes." \

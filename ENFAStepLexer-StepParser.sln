@@ -10,13 +10,13 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "ENFA_Parser.Tests", "src\EN
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "src", "src", "{16CACD42-1248-4AF0-932E-3C32A0F21FFB}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DevelApp.SplitLexer", "src\DevelApp.SplitLexer\DevelApp.SplitLexer.csproj", "{C74394FC-C10D-47F8-9604-8FF2A5315D77}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DevelApp.StepLexer", "src\DevelApp.StepLexer\DevelApp.StepLexer.csproj", "{C74394FC-C10D-47F8-9604-8FF2A5315D77}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DevelApp.SplitParser", "src\DevelApp.SplitParser\DevelApp.SplitParser.csproj", "{C7AAD239-327D-47D0-9DE1-D6F61263A023}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DevelApp.StepParser", "src\DevelApp.StepParser\DevelApp.StepParser.csproj", "{C7AAD239-327D-47D0-9DE1-D6F61263A023}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DevelApp.SplitLexer.Tests", "src\DevelApp.SplitLexer.Tests\DevelApp.SplitLexer.Tests.csproj", "{AB63FAFF-5082-49D7-A4A7-9267721F8E37}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DevelApp.StepLexer.Tests", "src\DevelApp.StepLexer.Tests\DevelApp.StepLexer.Tests.csproj", "{AB63FAFF-5082-49D7-A4A7-9267721F8E37}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DevelApp.SplitParser.Tests", "src\DevelApp.SplitParser.Tests\DevelApp.SplitParser.Tests.csproj", "{78C2C632-F30F-47BF-BA10-0D0087107748}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DevelApp.StepParser.Tests", "src\DevelApp.StepParser.Tests\DevelApp.StepParser.Tests.csproj", "{78C2C632-F30F-47BF-BA10-0D0087107748}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
