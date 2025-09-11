@@ -1,59 +1,34 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using DevelApp.SplitLexer;  // Keep old namespace until we fix it
+using DevelApp.StepLexer;
 using CognitiveGraph;
+using CognitiveGraph.Builder;
+using CognitiveGraph.Accessors;
+using CognitiveGraph.Schema;
 
 namespace DevelApp.StepParser
 {
-    // TODO: Replace ParseNode with CognitiveGraph integration
-    // Keeping ParseNode temporarily until we understand CognitiveGraph API
-
     /// <summary>
-    /// CognitiveGraph integration wrapper - to be implemented with actual CognitiveGraph types
+    /// Node reference in the CognitiveGraph for parser paths
     /// </summary>
-    public interface ICognitiveGraphIntegration
+    public struct GraphNodeRef
     {
-        // TODO: Replace with actual CognitiveGraph types once API is known
-        object CreateGraph();
-        object CreateNode(string type, string value, ICodeLocation location);
-        void AddNodeToGraph(object graph, object node);
-        void ConnectNodes(object parentNode, object childNode);
-        object GetBestParseResult(object graph);
-    }
+        public uint NodeOffset { get; set; }
+        public ushort SymbolId { get; set; }
+        public ushort NodeType { get; set; }
+        public string RuleName { get; set; }
+        public string Value { get; set; }
+        public ICodeLocation Location { get; set; }
 
-    /// <summary>
-    /// Parse tree node for AST construction
-    /// NOTE: This will be replaced with CognitiveGraph nodes
-    /// </summary>
-    public class ParseNode
-    {
-        public string RuleName { get; set; } = string.Empty;
-        public string Value { get; set; } = string.Empty;
-        public ICodeLocation Location { get; set; } = new CodeLocation();
-        public List<ParseNode> Children { get; set; } = new();
-        public StepToken? Token { get; set; }
-        public Dictionary<string, object> Attributes { get; set; } = new();
-
-        public ParseNode() { }
-
-        public ParseNode(string ruleName, ICodeLocation location)
+        public GraphNodeRef(uint nodeOffset, ushort symbolId, ushort nodeType, string ruleName, string value, ICodeLocation location)
         {
+            NodeOffset = nodeOffset;
+            SymbolId = symbolId;
+            NodeType = nodeType;
             RuleName = ruleName;
+            Value = value;
             Location = location;
-        }
-
-        public ParseNode(StepToken token)
-        {
-            RuleName = token.Type;
-            Value = token.Value;
-            Location = token.Location;
-            Token = token;
-        }
-
-        public override string ToString()
-        {
-            return $"{RuleName}: {Value} [{Children.Count} children]";
         }
     }
 
@@ -67,7 +42,7 @@ namespace DevelApp.StepParser
         public string Context { get; set; } = string.Empty;
         public int Precedence { get; set; } = 0;
         public string Associativity { get; set; } = "none"; // none, left, right
-        public Action<ParseNode, List<ParseNode>>? SemanticAction { get; set; }
+        public Action<GraphNodeRef, List<GraphNodeRef>, CognitiveGraphBuilder>? SemanticAction { get; set; }
         public Func<ParseContext, bool>? Precondition { get; set; }
 
         public ProductionRule(string name, List<string> rightHandSide, string context = "")
@@ -84,18 +59,19 @@ namespace DevelApp.StepParser
     }
 
     /// <summary>
-    /// Parser path for GLR-style multi-path parsing
+    /// Parser path for GLR-style multi-path parsing with CognitiveGraph integration
     /// </summary>
     public class ParserPath
     {
         public int PathId { get; set; }
-        public Stack<ParseNode> ParseStack { get; set; } = new();
+        public Stack<GraphNodeRef> ParseStack { get; set; } = new();
         public int TokenPosition { get; set; }
         public string CurrentState { get; set; } = string.Empty;
         public bool IsValid { get; set; } = true;
         public List<ProductionRule> ActiveProductions { get; set; } = new();
         public Dictionary<string, object> State { get; set; } = new();
         public float Score { get; set; } = 1.0f; // Path quality score
+        public List<uint> NodeOffsets { get; set; } = new(); // Track node offsets for ambiguity handling
 
         public ParserPath(int pathId)
         {
@@ -104,8 +80,8 @@ namespace DevelApp.StepParser
 
         public ParserPath Clone(int newPathId)
         {
-            var clonedStack = new Stack<ParseNode>();
-            var tempList = new List<ParseNode>(ParseStack.Reverse());
+            var clonedStack = new Stack<GraphNodeRef>();
+            var tempList = new List<GraphNodeRef>(ParseStack.Reverse());
             tempList.Reverse();
             foreach (var node in tempList)
             {
@@ -120,7 +96,8 @@ namespace DevelApp.StepParser
                 IsValid = IsValid,
                 ActiveProductions = new List<ProductionRule>(ActiveProductions),
                 State = new Dictionary<string, object>(State),
-                Score = Score
+                Score = Score,
+                NodeOffsets = new List<uint>(NodeOffsets)
             };
         }
     }
@@ -143,14 +120,17 @@ namespace DevelApp.StepParser
     }
 
     /// <summary>
-    /// Step parser with GLR-style multi-path processing for ambiguity resolution
+    /// Step parser with GLR-style multi-path processing and CognitiveGraph integration
     /// </summary>
-    public class StepParser
+    public class StepParser : IDisposable
     {
         private readonly List<ProductionRule> _grammar = new();
         private readonly List<ParserPath> _activePaths = new();
         private readonly ParseContext _context = new();
+        private readonly CognitiveGraphBuilder _graphBuilder = new();
         private int _nextPathId = 0;
+        private ushort _nextSymbolId = 1;
+        private string _sourceText = "";
 
         /// <summary>
         /// Active parsing paths
@@ -173,10 +153,11 @@ namespace DevelApp.StepParser
         /// <summary>
         /// Initialize parser with tokens
         /// </summary>
-        public void Initialize(List<StepToken> tokens)
+        public void Initialize(List<StepToken> tokens, string sourceText = "")
         {
             _context.Tokens = tokens;
             _context.CurrentTokenIndex = 0;
+            _sourceText = sourceText;
             _activePaths.Clear();
             _activePaths.Add(new ParserPath(_nextPathId++));
         }
@@ -191,7 +172,7 @@ namespace DevelApp.StepParser
             if (_context.CurrentToken == null)
             {
                 result.IsComplete = true;
-                result.ParseTrees = GenerateCompleteParseTrees();
+                result.CognitiveGraphs = GenerateCompleteCognitiveGraphs();
                 return result;
             }
 
@@ -265,8 +246,35 @@ namespace DevelApp.StepParser
             if (CanAcceptToken(path, token))
             {
                 var newPath = path.Clone(_nextPathId++);
-                var tokenNode = new ParseNode(token);
-                newPath.ParseStack.Push(tokenNode);
+                
+                // Create node in CognitiveGraph
+                var properties = new List<(string key, PropertyValueType type, object value)>
+                {
+                    ("TokenType", PropertyValueType.String, token.Type),
+                    ("TokenValue", PropertyValueType.String, token.Value),
+                    ("Context", PropertyValueType.String, token.Context),
+                    ("IsTerminal", PropertyValueType.Boolean, true)
+                };
+
+                var nodeOffset = _graphBuilder.WriteSymbolNode(
+                    symbolId: _nextSymbolId++,
+                    nodeType: 100, // Terminal node type
+                    sourceStart: (uint)token.Location.StartColumn, // Use column as position
+                    sourceLength: (uint)token.Value.Length,
+                    properties: properties
+                );
+
+                var nodeRef = new GraphNodeRef(
+                    nodeOffset, 
+                    (ushort)(_nextSymbolId - 1),
+                    100,
+                    token.Type, 
+                    token.Value, 
+                    token.Location
+                );
+
+                newPath.ParseStack.Push(nodeRef);
+                newPath.NodeOffsets.Add(nodeOffset);
                 newPath.TokenPosition++;
                 newPath.Score *= 0.95f; // Slight penalty for each shift
                 return (true, newPath);
@@ -347,12 +355,15 @@ namespace DevelApp.StepParser
             var newPath = path.Clone(_nextPathId++);
             
             // Pop RHS elements from stack
-            var children = new List<ParseNode>();
+            var children = new List<GraphNodeRef>();
+            var childNodeOffsets = new List<uint>();
             for (int i = 0; i < rule.RightHandSide.Count; i++)
             {
                 if (newPath.ParseStack.Count > 0)
                 {
-                    children.Insert(0, newPath.ParseStack.Pop());
+                    var childRef = newPath.ParseStack.Pop();
+                    children.Insert(0, childRef);
+                    childNodeOffsets.Insert(0, childRef.NodeOffset);
                 }
                 else
                 {
@@ -360,17 +371,56 @@ namespace DevelApp.StepParser
                 }
             }
 
-            // Create new node for LHS
+            // Determine source span for the new node
             var location = children.Count > 0 ? children[0].Location : new CodeLocation();
-            var newNode = new ParseNode(rule.Name, location)
+            var sourceStart = children.Count > 0 ? (uint)children[0].Location.StartColumn : 0u;
+            var sourceEnd = children.Count > 0 ? (uint)children.Last().Location.EndColumn : 0u;
+            var sourceLength = sourceEnd > sourceStart ? sourceEnd - sourceStart : 0u;
+
+            // Create properties for the non-terminal node
+            var properties = new List<(string key, PropertyValueType type, object value)>
             {
-                Children = children
+                ("RuleName", PropertyValueType.String, rule.Name),
+                ("Context", PropertyValueType.String, rule.Context),
+                ("IsTerminal", PropertyValueType.Boolean, false),
+                ("Precedence", PropertyValueType.Int32, rule.Precedence),
+                ("Associativity", PropertyValueType.String, rule.Associativity)
             };
+
+            // Create packed node for the reduction if there are children
+            uint packedNodeOffset = 0;
+            if (childNodeOffsets.Any())
+            {
+                packedNodeOffset = _graphBuilder.WritePackedNode(
+                    ruleId: (ushort)(_grammar.IndexOf(rule) + 1),
+                    childNodeOffsets: childNodeOffsets
+                );
+            }
+
+            // Create the symbol node
+            var packedNodes = packedNodeOffset != 0 ? new List<uint> { packedNodeOffset } : null;
+            var nodeOffset = _graphBuilder.WriteSymbolNode(
+                symbolId: _nextSymbolId++,
+                nodeType: 200, // Non-terminal node type
+                sourceStart: sourceStart,
+                sourceLength: sourceLength,
+                packedNodeOffsets: packedNodes,
+                properties: properties
+            );
+
+            var newNodeRef = new GraphNodeRef(
+                nodeOffset,
+                (ushort)(_nextSymbolId - 1),
+                200,
+                rule.Name,
+                "",
+                location
+            );
 
             // Execute semantic action if present
             try
             {
-                rule.SemanticAction?.Invoke(newNode, children);
+                rule.SemanticAction?.Invoke(newNodeRef, children, _graphBuilder);
             }
             catch (Exception ex)
             {
@@ -378,7 +428,8 @@ namespace DevelApp.StepParser
                 Console.WriteLine($"Semantic action error for rule {rule.Name}: {ex.Message}");
             }
 
-            newPath.ParseStack.Push(newNode);
+            newPath.ParseStack.Push(newNodeRef);
+            newPath.NodeOffsets.Add(nodeOffset);
             newPath.Score *= 1.1f; // Reward successful reductions
             
             return newPath;
@@ -424,76 +475,90 @@ namespace DevelApp.StepParser
         }
 
         /// <summary>
-        /// Generate complete parse trees from successful paths
+        /// Generate complete CognitiveGraphs from successful paths
         /// </summary>
-        private List<ParseNode> GenerateCompleteParseTrees()
+        private List<CognitiveGraph.CognitiveGraph> GenerateCompleteCognitiveGraphs()
         {
-            var completeTrees = new List<ParseNode>();
+            var completeGraphs = new List<CognitiveGraph.CognitiveGraph>();
 
-            foreach (var path in _activePaths.Where(p => p.IsValid && p.ParseStack.Count == 1))
+            var successfulPaths = _activePaths.Where(p => p.IsValid && p.ParseStack.Count == 1).ToList();
+            
+            if (successfulPaths.Count == 1)
             {
-                completeTrees.Add(path.ParseStack.Peek());
+                // Single successful parse - create simple graph
+                var path = successfulPaths[0];
+                var rootNodeRef = path.ParseStack.Peek();
+                var buffer = _graphBuilder.Build(rootNodeRef.NodeOffset, _sourceText);
+                completeGraphs.Add(new CognitiveGraph.CognitiveGraph(buffer));
+            }
+            else if (successfulPaths.Count > 1)
+            {
+                // Multiple successful parses - create ambiguous graph with packed nodes
+                var ambiguousNodeOffsets = successfulPaths.Select(p => p.ParseStack.Peek().NodeOffset).ToList();
+                
+                // Create packed nodes for each interpretation
+                var packedNodeOffsets = new List<uint>();
+                for (int i = 0; i < successfulPaths.Count; i++)
+                {
+                    var packedNodeOffset = _graphBuilder.WritePackedNode(
+                        ruleId: (ushort)(i + 1),
+                        childNodeOffsets: new List<uint> { ambiguousNodeOffsets[i] }
+                    );
+                    packedNodeOffsets.Add(packedNodeOffset);
+                }
+
+                // Create ambiguous root node
+                var ambiguousProperties = new List<(string key, PropertyValueType type, object value)>
+                {
+                    ("NodeType", PropertyValueType.String, "AmbiguousRoot"),
+                    ("ParseCount", PropertyValueType.Int32, successfulPaths.Count),
+                    ("IsAmbiguous", PropertyValueType.Boolean, true)
+                };
+
+                var ambiguousRootOffset = _graphBuilder.WriteSymbolNode(
+                    symbolId: _nextSymbolId++,
+                    nodeType: 300, // Ambiguous root node type
+                    sourceStart: 0,
+                    sourceLength: (uint)_sourceText.Length,
+                    packedNodeOffsets: packedNodeOffsets,
+                    properties: ambiguousProperties
+                );
+
+                var buffer = _graphBuilder.Build(ambiguousRootOffset, _sourceText);
+                completeGraphs.Add(new CognitiveGraph.CognitiveGraph(buffer));
             }
 
-            return completeTrees;
+            return completeGraphs;
         }
 
         /// <summary>
-        /// Select the best parse tree based on path scores
+        /// Select the best CognitiveGraph based on path scores
         /// </summary>
-        public ParseNode? SelectBestParseTree()
+        public CognitiveGraph.CognitiveGraph? SelectBestParseGraph()
         {
-            var completeTrees = GenerateCompleteParseTrees();
-            if (!completeTrees.Any())
+            var completeGraphs = GenerateCompleteCognitiveGraphs();
+            if (!completeGraphs.Any())
                 return null;
 
-            // Find the path with highest score that produced a complete parse
-            var bestPath = _activePaths
-                .Where(p => p.IsValid && p.ParseStack.Count == 1)
-                .OrderByDescending(p => p.Score)
-                .FirstOrDefault();
-
-            return bestPath?.ParseStack.Peek();
+            // For now, return the first available graph
+            // In the future, we could implement scoring based on graph properties
+            return completeGraphs.First();
         }
 
         /// <summary>
-        /// Handle ambiguous parses by returning multiple valid trees
+        /// Handle ambiguous parses by returning CognitiveGraph with packed nodes
         /// </summary>
-        public List<ParseNode> HandleAmbiguity()
+        public List<CognitiveGraph.CognitiveGraph> HandleAmbiguity()
         {
-            var ambiguousTrees = GenerateCompleteParseTrees();
-            
-            // If multiple complete parses exist, they represent ambiguity
-            if (ambiguousTrees.Count > 1)
-            {
-                // Apply disambiguation heuristics
-                return DisambiguateParseTrees(ambiguousTrees);
-            }
-
-            return ambiguousTrees;
+            return GenerateCompleteCognitiveGraphs();
         }
 
         /// <summary>
-        /// Apply disambiguation heuristics to multiple parse trees
+        /// Dispose resources
         /// </summary>
-        private List<ParseNode> DisambiguateParseTrees(List<ParseNode> trees)
+        public void Dispose()
         {
-            // Example disambiguation strategies:
-            // 1. Prefer trees with fewer nodes (simpler interpretations)
-            // 2. Prefer trees that follow precedence rules
-            // 3. Use semantic constraints
-
-            return trees
-                .OrderBy(tree => CountNodes(tree)) // Prefer simpler trees
-                .ToList();
-        }
-
-        /// <summary>
-        /// Count total nodes in parse tree
-        /// </summary>
-        private int CountNodes(ParseNode node)
-        {
-            return 1 + node.Children.Sum(child => CountNodes(child));
+            _graphBuilder?.Dispose();
         }
     }
 
@@ -507,7 +572,7 @@ namespace DevelApp.StepParser
         public int ActivePathCount { get; set; }
         public int CurrentPosition { get; set; }
         public bool IsComplete { get; set; }
-        public List<ParseNode> ParseTrees { get; set; } = new();
+        public List<CognitiveGraph.CognitiveGraph> CognitiveGraphs { get; set; } = new();
     }
 
     /// <summary>

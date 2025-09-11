@@ -3,10 +3,11 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text;
+using DevelApp.StepLexer;
+using CognitiveGraph;
+using CognitiveGraph.Accessors;
 
-using DevelApp.SplitLexer;
-
-namespace DevelApp.SplitParser
+namespace DevelApp.StepParser
 {
     /// <summary>
     /// Selection criteria for location-based targeting
@@ -28,7 +29,7 @@ namespace DevelApp.SplitParser
         public string Name { get; set; } = string.Empty;
         public string[] ApplicableContexts { get; set; } = Array.Empty<string>();
         public Func<ParseContext, bool>? Preconditions { get; set; }
-        public Func<ParseNode, ParseContext, RefactoringResult>? Execute { get; set; }
+        public Func<ICodeLocation, ParseContext, RefactoringResult>? Execute { get; set; }
         public string Description { get; set; } = string.Empty;
     }
 
@@ -40,7 +41,7 @@ namespace DevelApp.SplitParser
         public bool Success { get; set; }
         public string Message { get; set; } = string.Empty;
         public List<CodeChange> Changes { get; set; } = new();
-        public ParseNode? ModifiedNode { get; set; }
+        public ICodeLocation? ModifiedNodeLocation { get; set; }
     }
 
     /// <summary>
@@ -55,13 +56,13 @@ namespace DevelApp.SplitParser
     }
 
     /// <summary>
-    /// Complete step-parsing result
+    /// Complete step-parsing result with CognitiveGraph integration
     /// </summary>
     public class StepParsingResult
     {
         public bool Success { get; set; }
-        public ParseNode? ParseTree { get; set; }
-        public List<ParseNode> AmbiguousParses { get; set; } = new();
+        public CognitiveGraph.CognitiveGraph? CognitiveGraph { get; set; }
+        public List<CognitiveGraph.CognitiveGraph> AmbiguousParses { get; set; } = new();
         public List<StepToken> Tokens { get; set; } = new();
         public List<string> Errors { get; set; } = new();
         public TimeSpan ParseTime { get; set; }
@@ -73,9 +74,9 @@ namespace DevelApp.SplitParser
     /// Main step-parser engine coordinating lexer, parser, and semantic analysis
     /// Implements the GrammarForge architecture with location-based targeting and surgical operations
     /// </summary>
-    public class StepParserEngine
+    public class StepParserEngine : IDisposable
     {
-        private readonly StepLexer _lexer = new();
+        private readonly DevelApp.StepLexer.StepLexer _lexer = new();
         private readonly StepParser _parser = new();
         private readonly GrammarLoader _grammarLoader = new();
         private readonly Dictionary<string, RefactoringOperation> _refactoringOps = new();
@@ -167,7 +168,7 @@ namespace DevelApp.SplitParser
                 result.Tokens = tokens;
 
                 // Phase 2: Syntactic analysis with GLR parsing
-                _parser.Initialize(tokens);
+                _parser.Initialize(tokens, input);
                 
                 while (true)
                 {
@@ -175,7 +176,7 @@ namespace DevelApp.SplitParser
                     
                     if (parserResult.IsComplete)
                     {
-                        result.ParseTree = _parser.SelectBestParseTree();
+                        result.CognitiveGraph = _parser.SelectBestParseGraph();
                         result.AmbiguousParses = _parser.HandleAmbiguity();
                         break;
                     }
@@ -188,7 +189,7 @@ namespace DevelApp.SplitParser
                     }
                 }
 
-                result.Success = result.ParseTree != null;
+                result.Success = result.CognitiveGraph != null;
                 result.PathCount = _parser.ActivePaths.Count;
                 result.Context = _parser.Context;
             }
@@ -215,26 +216,47 @@ namespace DevelApp.SplitParser
             var content = File.ReadAllText(file);
             var parseResult = Parse(content, file);
 
-            if (!parseResult.Success || parseResult.ParseTree == null)
+            if (!parseResult.Success || parseResult.CognitiveGraph == null)
                 return locations;
 
-            return SelectFromParseTree(parseResult.ParseTree, criteria, file);
+            return SelectFromCognitiveGraph(parseResult.CognitiveGraph, criteria, file);
         }
 
         /// <summary>
-        /// Select locations from parse tree based on criteria
+        /// Select locations from CognitiveGraph based on criteria
         /// </summary>
-        private List<ICodeLocation> SelectFromParseTree(ParseNode node, SelectionCriteria criteria, string file)
+        private List<ICodeLocation> SelectFromCognitiveGraph(CognitiveGraph.CognitiveGraph graph, SelectionCriteria criteria, string file)
         {
             var locations = new List<ICodeLocation>();
+            var rootNode = graph.GetRootNode();
+            
+            return SelectFromSymbolNode(rootNode, criteria, file, graph);
+        }
+
+        /// <summary>
+        /// Select locations from SymbolNode recursively
+        /// </summary>
+        private List<ICodeLocation> SelectFromSymbolNode(SymbolNode node, SelectionCriteria criteria, string file, CognitiveGraph.CognitiveGraph graph)
+        {
+            var locations = new List<ICodeLocation>();
+            var sourceText = node.GetSourceText().ToString();
 
             // Regex-based selection
             if (!string.IsNullOrEmpty(criteria.Regex))
             {
                 var regex = new System.Text.RegularExpressions.Regex(criteria.Regex);
-                if (regex.IsMatch(node.Value))
+                if (regex.IsMatch(sourceText))
                 {
-                    locations.Add(node.Location);
+                    var location = new CodeLocation
+                    {
+                        File = file,
+                        StartLine = 1, // Would need proper line calculation from byte position
+                        StartColumn = (int)node.SourceStart,
+                        EndLine = 1,
+                        EndColumn = (int)node.SourceEnd,
+                        Context = ""
+                    };
+                    locations.Add(location);
                 }
             }
 
@@ -242,47 +264,42 @@ namespace DevelApp.SplitParser
             if (criteria.Structural.HasValue)
             {
                 var structural = criteria.Structural.Value;
-                if (IsStructuralMatch(node, structural.type))
+                if (node.TryGetProperty("RuleName", out var ruleNameProp))
                 {
-                    locations.Add(node.Location);
+                    var ruleName = ruleNameProp.AsString();
+                    if (IsStructuralMatch(ruleName, structural.type))
+                    {
+                        var location = new CodeLocation
+                        {
+                            File = file,
+                            StartLine = 1, // Would need proper line calculation from byte position
+                            StartColumn = (int)node.SourceStart,
+                            EndLine = 1,
+                            EndColumn = (int)node.SourceEnd,
+                            Context = ""
+                        };
+                        locations.Add(location);
+                    }
                 }
             }
 
-            // Range selection
-            if (criteria.Range.HasValue)
+            // Process packed nodes (ambiguous interpretations) - simplified for now
+            if (node.IsAmbiguous)
             {
-                var range = criteria.Range.Value;
-                if (IsInRange(node, range.start, range.end))
-                {
-                    locations.Add(node.Location);
-                }
-            }
-
-            // Recursively check children
-            foreach (var child in node.Children)
-            {
-                locations.AddRange(SelectFromParseTree(child, criteria, file));
+                // TODO: Implement proper packed node iteration once CognitiveGraph collection API is clarified
+                // var packedNodes = node.GetPackedNodes();
             }
 
             return locations;
         }
 
         /// <summary>
-        /// Check if node matches structural criteria
+        /// Check if rule name matches structural criteria
         /// </summary>
-        private bool IsStructuralMatch(ParseNode node, string type)
+        private bool IsStructuralMatch(string ruleName, string type)
         {
-            return node.RuleName.Equals(type, StringComparison.OrdinalIgnoreCase) ||
-                   node.RuleName.Contains(type, StringComparison.OrdinalIgnoreCase);
-        }
-
-        /// <summary>
-        /// Check if node is within range
-        /// </summary>
-        private bool IsInRange(ParseNode node, string start, string end)
-        {
-            // Simplified range checking - in full implementation would use proper position comparison
-            return node.Value.Contains(start) || node.Value.Contains(end);
+            return ruleName.Equals(type, StringComparison.OrdinalIgnoreCase) ||
+                   ruleName.Contains(type, StringComparison.OrdinalIgnoreCase);
         }
 
         /// <summary>
@@ -294,12 +311,11 @@ namespace DevelApp.SplitParser
             if (operation.Execute == null)
                 return new RefactoringResult { Success = false, Message = "Extract variable operation not available" };
 
-            // Find the parse node at the given location
-            var targetNode = FindNodeAtLocation(location);
-            if (targetNode == null)
+            // Find the node at the given location for context
+            if (!TryFindNodeAtLocation(location, out var targetNode))
                 return new RefactoringResult { Success = false, Message = "No parse node found at location" };
 
-            return operation.Execute(targetNode, _parser.Context);
+            return operation.Execute(location, _parser.Context);
         }
 
         /// <summary>
@@ -311,11 +327,10 @@ namespace DevelApp.SplitParser
             if (operation.Execute == null)
                 return new RefactoringResult { Success = false, Message = "Inline variable operation not available" };
 
-            var targetNode = FindNodeAtLocation(location);
-            if (targetNode == null)
+            if (!TryFindNodeAtLocation(location, out var targetNode))
                 return new RefactoringResult { Success = false, Message = "No parse node found at location" };
 
-            return operation.Execute(targetNode, _parser.Context);
+            return operation.Execute(location, _parser.Context);
         }
 
         /// <summary>
@@ -327,14 +342,13 @@ namespace DevelApp.SplitParser
             if (operation.Execute == null)
                 return new RefactoringResult { Success = false, Message = "Rename operation not available" };
 
-            var targetNode = FindNodeAtLocation(location);
-            if (targetNode == null)
+            if (!TryFindNodeAtLocation(location, out var targetNode))
                 return new RefactoringResult { Success = false, Message = "No parse node found at location" };
 
             // Set the new name in context for the operation
             _parser.Context.Variables["newName"] = newName;
 
-            return operation.Execute(targetNode, _parser.Context);
+            return operation.Execute(location, _parser.Context);
         }
 
         /// <summary>
@@ -342,11 +356,16 @@ namespace DevelApp.SplitParser
         /// </summary>
         public List<ICodeLocation> FindUsages(ICodeLocation location, string scope = "")
         {
-            var targetNode = FindNodeAtLocation(location);
-            if (targetNode?.Token == null)
+            if (!TryFindNodeAtLocation(location, out var targetNode))
                 return new List<ICodeLocation>();
 
-            var symbolName = targetNode.Token.Value;
+            // Get the symbol name from node properties
+            var symbolName = "";
+            if (targetNode.TryGetProperty("TokenValue", out var tokenValue))
+            {
+                symbolName = tokenValue.AsString();
+            }
+
             var references = _parser.Context.SymbolTable.FindAllReferences(symbolName);
 
             if (!string.IsNullOrEmpty(scope))
@@ -362,8 +381,7 @@ namespace DevelApp.SplitParser
         /// </summary>
         public List<RefactoringOperation> GetApplicableRefactorings(ICodeLocation location)
         {
-            var targetNode = FindNodeAtLocation(location);
-            if (targetNode == null)
+            if (!TryFindNodeAtLocation(location, out var targetNode))
                 return new List<RefactoringOperation>();
 
             var applicable = new List<RefactoringOperation>();
@@ -385,13 +403,14 @@ namespace DevelApp.SplitParser
         }
 
         /// <summary>
-        /// Find parse node at specific location
+        /// Find SymbolNode at specific location
         /// </summary>
-        private ParseNode? FindNodeAtLocation(ICodeLocation location)
+        private bool TryFindNodeAtLocation(ICodeLocation location, out SymbolNode node)
         {
-            // This would need to search through the current parse tree
-            // For now, return null - in full implementation would traverse parse tree
-            return null;
+            // This would need to search through the current CognitiveGraph
+            // For now, return false - in full implementation would traverse graph
+            node = default;
+            return false;
         }
 
         /// <summary>
@@ -407,7 +426,7 @@ namespace DevelApp.SplitParser
                 ApplicableContexts = new[] { "function", "method", "block" },
                 Preconditions = context => context.CurrentToken?.Type == "IDENTIFIER" || 
                                          context.CurrentToken?.Type == "expression",
-                Execute = (node, context) =>
+                Execute = (location, context) =>
                 {
                     var variableName = context.Variables.ContainsKey("variableName") 
                         ? context.Variables["variableName"].ToString() 
@@ -421,8 +440,8 @@ namespace DevelApp.SplitParser
                         {
                             new CodeChange
                             {
-                                Location = node.Location,
-                                OriginalText = node.Value,
+                                Location = location,
+                                OriginalText = "expression", // Would need to extract from source
                                 NewText = variableName ?? "temp",
                                 ChangeType = "replace"
                             }
@@ -437,9 +456,11 @@ namespace DevelApp.SplitParser
                 Name = "inline-variable",
                 Description = "Inline variable usage with its value",
                 ApplicableContexts = new[] { "function", "method", "block" },
-                Execute = (node, context) =>
+                Execute = (location, context) =>
                 {
-                    var symbolInfo = context.SymbolTable.Lookup(node.Value, 
+                    // Would need to get symbol name from location - simplified for now
+                    var symbolName = "variable"; // Placeholder
+                    var symbolInfo = context.SymbolTable.Lookup(symbolName, 
                         context.ContextStack.Current() ?? "");
                     
                     if (symbolInfo?.CanInline == true && !string.IsNullOrEmpty(symbolInfo.Value))
@@ -447,13 +468,13 @@ namespace DevelApp.SplitParser
                         return new RefactoringResult
                         {
                             Success = true,
-                            Message = $"Inlined variable '{node.Value}'",
+                            Message = $"Inlined variable '{symbolName}'",
                             Changes = new List<CodeChange>
                             {
                                 new CodeChange
                                 {
-                                    Location = node.Location,
-                                    OriginalText = node.Value,
+                                    Location = location,
+                                    OriginalText = symbolName,
                                     NewText = symbolInfo.Value,
                                     ChangeType = "replace"
                                 }
@@ -474,17 +495,19 @@ namespace DevelApp.SplitParser
             {
                 Name = "rename",
                 Description = "Rename symbol and all its references",
-                Execute = (node, context) =>
+                Execute = (location, context) =>
                 {
                     var newName = context.Variables.ContainsKey("newName") 
                         ? context.Variables["newName"].ToString() 
                         : "renamed";
                     
-                    var references = context.SymbolTable.FindAllReferences(node.Value);
+                    // Would need to get symbol name from location - simplified for now
+                    var symbolName = "symbol"; // Placeholder
+                    var references = context.SymbolTable.FindAllReferences(symbolName);
                     var changes = references.Select(r => new CodeChange
                     {
                         Location = r.Location,
-                        OriginalText = node.Value,
+                        OriginalText = symbolName,
                         NewText = newName ?? "renamed",
                         ChangeType = "replace"
                     }).ToList();
@@ -492,7 +515,7 @@ namespace DevelApp.SplitParser
                     return new RefactoringResult
                     {
                         Success = true,
-                        Message = $"Renamed '{node.Value}' to '{newName}' ({references.Length} references)",
+                        Message = $"Renamed '{symbolName}' to '{newName}' ({references.Length} references)",
                         Changes = changes
                     };
                 }
@@ -510,12 +533,13 @@ namespace DevelApp.SplitParser
         /// <summary>
         /// Execute projection match triggered code for semantic rules
         /// </summary>
-        public void ExecuteProjection(string ruleName, string context, ParseNode node)
+        public void ExecuteProjection(string ruleName, string context, ICodeLocation location)
         {
             var projection = _grammarLoader.GetProjection(ruleName, context);
             if (projection?.ExecuteAction != null)
             {
-                projection.ExecuteAction(node, _parser.Context);
+                // Would need to get SymbolNode from location - simplified for now
+                // projection.ExecuteAction(node, _parser.Context);
             }
         }
 
@@ -538,6 +562,15 @@ namespace DevelApp.SplitParser
             var pathCount = _parser.ActivePaths.Count;
             
             return (tokenCount * 64 + pathCount * 128, tokenCount + pathCount);
+        }
+
+        /// <summary>
+        /// Dispose resources
+        /// </summary>
+        public void Dispose()
+        {
+            _parser?.Dispose();
+            // _lexer does not implement IDisposable currently
         }
     }
 }

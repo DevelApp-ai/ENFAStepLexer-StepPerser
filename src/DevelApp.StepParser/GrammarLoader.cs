@@ -3,10 +3,10 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text.RegularExpressions;
+using DevelApp.StepLexer;
+using CognitiveGraph.Accessors;
 
-using DevelApp.SplitLexer;
-
-namespace DevelApp.SplitParser
+namespace DevelApp.StepParser
 {
     /// <summary>
     /// Grammar definition loaded from file
@@ -20,7 +20,7 @@ namespace DevelApp.SplitParser
         public Dictionary<string, int> Precedence { get; set; } = new();
         public Dictionary<string, string> Associativity { get; set; } = new();
         public List<string> Contexts { get; set; } = new();
-        public Dictionary<string, Action<ParseNode, List<ParseNode>>> SemanticActions { get; set; } = new();
+        public Dictionary<string, Action<GraphNodeRef, List<GraphNodeRef>, CognitiveGraph.Builder.CognitiveGraphBuilder>> SemanticActions { get; set; } = new();
         public List<string> Imports { get; set; } = new();
         public bool IsInheritable { get; set; }
         public string FormatType { get; set; } = string.Empty;
@@ -37,7 +37,7 @@ namespace DevelApp.SplitParser
         public string TriggeredCode { get; set; } = string.Empty;
         public List<string> Parameters { get; set; } = new();
         public Func<ParseContext, bool>? MatchCondition { get; set; }
-        public Action<ParseNode, ParseContext>? ExecuteAction { get; set; }
+        public Action<ICodeLocation, ParseContext>? ExecuteAction { get; set; }
 
         public ContextProjection(string ruleName, string context, string pattern, string code)
         {
@@ -575,14 +575,15 @@ namespace DevelApp.SplitParser
         /// <summary>
         /// Create semantic action from code string
         /// </summary>
-        private Action<ParseNode, List<ParseNode>> CreateSemanticAction(string code, string ruleName)
+        private Action<GraphNodeRef, List<GraphNodeRef>, CognitiveGraph.Builder.CognitiveGraphBuilder> CreateSemanticAction(string code, string ruleName)
         {
-            return (node, children) =>
+            return (node, children, builder) =>
             {
                 // Simplified semantic action execution
                 if (code.Contains("createBinaryOp"))
                 {
-                    node.Value = $"BinaryOp({children[0].Value}, {children[1].Value}, {children[2].Value})";
+                    // Would create additional properties or nodes using builder
+                    // node.Value = $"BinaryOp({children[0].Value}, {children[1].Value}, {children[2].Value})";
                 }
                 else if (code.Contains("$2"))
                 {
@@ -596,7 +597,7 @@ namespace DevelApp.SplitParser
         /// <summary>
         /// Create projection action from code string
         /// </summary>
-        private Action<ParseNode, ParseContext> CreateProjectionAction(string code, string ruleName, string context)
+        private Action<ICodeLocation, ParseContext> CreateProjectionAction(string code, string ruleName, string context)
         {
             return (node, parseContext) =>
             {

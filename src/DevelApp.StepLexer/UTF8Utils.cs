@@ -2,7 +2,7 @@ using System;
 using System.Buffers;
 using System.Text;
 
-namespace DevelApp.SplitLexer
+namespace DevelApp.StepLexer
 {
     /// <summary>
     /// UTF-8 processing utilities to avoid UTF-16 conversion overhead

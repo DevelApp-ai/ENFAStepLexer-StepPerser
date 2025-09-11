@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 
-namespace DevelApp.SplitLexer
+namespace DevelApp.StepLexer
 {
     /// <summary>
     /// Represents a token that can be split into multiple alternatives during ambiguity resolution

@@ -2,7 +2,7 @@ using System;
 using System.IO;
 using System.Runtime.Serialization;
 
-namespace DevelApp.SplitParser
+namespace DevelApp.StepParser
 {
     [Serializable]
     public class ENFA_Exception : Exception

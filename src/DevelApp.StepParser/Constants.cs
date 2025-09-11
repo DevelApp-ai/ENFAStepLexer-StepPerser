@@ -1,6 +1,6 @@
 using System.Text;
 
-namespace DevelApp.SplitParser
+namespace DevelApp.StepParser
 {
     public static class Constants
     {

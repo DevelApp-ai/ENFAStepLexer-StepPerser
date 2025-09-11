@@ -2,7 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 
-namespace DevelApp.SplitLexer
+namespace DevelApp.StepLexer
 {
     /// <summary>
     /// Represents a precise location in source code for surgical operations

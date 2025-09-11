@@ -2,7 +2,7 @@ using System;
 using System.IO;
 using System.Text;
 
-namespace DevelApp.SplitLexer
+namespace DevelApp.StepLexer
 {
     /// <summary>
     /// Parser types supported by vNext architecture

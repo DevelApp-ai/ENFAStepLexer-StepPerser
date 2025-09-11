@@ -4,7 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace DevelApp.SplitLexer
+namespace DevelApp.StepLexer
 {
     public class ErrorText
     {

@@ -1,7 +1,7 @@
 using System;
 using System.Runtime.Serialization;
 
-namespace DevelApp.SplitLexer
+namespace DevelApp.StepLexer
 {
     [Serializable]
     public class ENFA_RegexBuild_Exception : ENFA_Exception

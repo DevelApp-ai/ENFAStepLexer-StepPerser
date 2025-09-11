@@ -1,7 +1,7 @@
 using System;
 using System.Runtime.Serialization;
 
-namespace DevelApp.SplitParser
+namespace DevelApp.StepParser
 {
     [Serializable]
     public class ENFA_GrammarBuild_Exception : ENFA_Exception

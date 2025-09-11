@@ -1,7 +1,7 @@
 using System;
 using System.Text;
 
-namespace DevelApp.SplitLexer
+namespace DevelApp.StepLexer
 {
     /// <summary>
     /// Zero-copy string view implementation inspired by Cap'n Proto design patterns.

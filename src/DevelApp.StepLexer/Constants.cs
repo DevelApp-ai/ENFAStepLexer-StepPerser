@@ -1,6 +1,6 @@
 using System.Text;
 
-namespace DevelApp.SplitLexer
+namespace DevelApp.StepLexer
 {
     public static class Constants
     {
