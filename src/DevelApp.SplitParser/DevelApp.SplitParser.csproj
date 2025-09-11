@@ -1,0 +1,53 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <LangVersion>latest</LangVersion>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <GeneratePackageOnBuild>false</GeneratePackageOnBuild>
+    
+    <!-- Package Information -->
+    <PackageId>DevelApp.SplitParser</PackageId>
+    <Title>Split Parser - GLR-Style Multi-Path Parsing with CognitiveGraph Integration</Title>
+    <Description>A modern parser implementation with GLR-style multi-path parsing, context-sensitive grammar support, and CognitiveGraph integration for advanced semantic analysis. Part of the GrammarForge step-parser architecture.</Description>
+    <Authors>DevelApp-ai</Authors>
+    <Company>DevelApp-ai</Company>
+    <Product>DevelApp.SplitParser</Product>
+    <Copyright>Copyright (c) 2024 DevelApp-ai</Copyright>
+    
+    <!-- Package Metadata -->
+    <PackageTags>parser;glr;multi-path;context-sensitive;grammar;cognitive-graph;step-parser</PackageTags>
+    <PackageProjectUrl>https://github.com/DevelApp-ai/ENFAStepLexer-StepPerser</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/DevelApp-ai/ENFAStepLexer-StepPerser</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageRequireLicenseAcceptance>false</PackageRequireLicenseAcceptance>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    
+    <!-- Release Notes -->
+    <PackageReleaseNotes>
+      v1.0.0: 
+      - NEW: StepParser with GLR-style multi-path parsing for ambiguity resolution
+      - NEW: Context-sensitive grammar support with hierarchical scopes
+      - NEW: CognitiveGraph integration for advanced semantic analysis
+      - NEW: Grammar inheritance with ANTLR/Bison/Yacc base grammar support
+      - NEW: Location-based refactoring operations (extract, inline, rename)
+      - ENHANCED: Projection match triggered semantic rules
+    </PackageReleaseNotes>
+    
+    <!-- Documentation -->
+    <DocumentationFile>bin\$(Configuration)\$(TargetFramework)\$(AssemblyName).xml</DocumentationFile>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\DevelApp.SplitLexer\DevelApp.SplitLexer.csproj" />
+    <PackageReference Include="DevelApp.CognitiveGraph" Version="1.0.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="..\..\README.md" Pack="true" PackagePath="\" />
+  </ItemGroup>
+
+</Project>
