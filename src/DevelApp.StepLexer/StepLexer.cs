@@ -597,16 +597,16 @@ namespace DevelApp.StepLexer
             // Simplified pattern matching - in a real implementation, this would use proper regex/pattern engines
             var pattern = rule.Pattern;
             
-            if (pattern.StartsWith("/") && pattern.EndsWith("/"))
+            if (pattern.StartsWith("/") && pattern.EndsWith("/") && pattern.Length > 1)
             {
                 // Regex pattern - simplified implementation
-                var regex = pattern[1..^1];
+                var regex = pattern.Length > 2 ? pattern[1..^1] : "";
                 return TryMatchRegex(regex, input);
             }
-            else if (pattern.StartsWith("\"") && pattern.EndsWith("\""))
+            else if (pattern.StartsWith("\"") && pattern.EndsWith("\"") && pattern.Length > 1)
             {
                 // Literal string match
-                var literal = pattern[1..^1];
+                var literal = pattern.Length > 2 ? pattern[1..^1] : "";
                 return TryMatchLiteral(literal, input);
             }
             
@@ -741,8 +741,12 @@ namespace DevelApp.StepLexer
                 {
                     if (part.Contains("}"))
                     {
-                        var hex = part.Substring(0, part.IndexOf("}"));
-                        splits.Add(new StepToken("HEX_ESCAPE", $"\\x{{{hex}}}", location, originalToken.Context));
+                        var closingBraceIndex = part.IndexOf("}");
+                        if (closingBraceIndex > 0) // Make sure it's found and not at position 0
+                        {
+                            var hex = part.Substring(0, closingBraceIndex);
+                            splits.Add(new StepToken("HEX_ESCAPE", $"\\x{{{hex}}}", location, originalToken.Context));
+                        }
                     }
                 }
             }

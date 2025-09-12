@@ -41,6 +41,13 @@ TokenSplitter: Space
             // Act
             var result = _engine.Parse("x + 42 - y");
 
+            // Debug output to understand the issue
+            Console.WriteLine($"Parse result - Success: {result.Success}, Tokens: {result.Tokens?.Count ?? 0}, Errors: {result.Errors?.Count ?? 0}");
+            if (result.Errors?.Count > 0)
+            {
+                Console.WriteLine($"Errors: {string.Join(", ", result.Errors)}");
+            }
+
             // Assert
             Assert.True(result.Success, $"Parsing should succeed. Errors: {string.Join(", ", result.Errors ?? new List<string>())}");
             Assert.True(result.Tokens?.Count > 0, "Should produce tokens");
