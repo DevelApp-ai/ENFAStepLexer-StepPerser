@@ -1,9 +1,9 @@
 using Xunit;
 using FluentAssertions;
-using DevelApp.SplitLexer;
+using DevelApp.StepLexer;
 using System.Text;
 
-namespace DevelApp.SplitLexer.Tests
+namespace DevelApp.StepLexer.Tests
 {
     public class ZeroCopyStringViewTests
     {
@@ -154,7 +154,7 @@ namespace DevelApp.SplitLexer.Tests
         public void Phase1_LexicalScan_SimplePattern_Success()
         {
             // Arrange
-            var lexer = new StepLexer();
+            var lexer = new DevelApp.StepLexer.StepLexer();
             var pattern = Encoding.UTF8.GetBytes(@"\d+");
             var view = new ZeroCopyStringView(pattern);
             
@@ -170,7 +170,7 @@ namespace DevelApp.SplitLexer.Tests
         public void Phase1_LexicalScan_ComplexPattern_DetectsAmbiguity()
         {
             // Arrange
-            var lexer = new StepLexer();
+            var lexer = new DevelApp.StepLexer.StepLexer();
             var pattern = Encoding.UTF8.GetBytes(@"\x{41}\xFF"); // Ambiguous hex patterns
             var view = new ZeroCopyStringView(pattern);
             
@@ -187,7 +187,7 @@ namespace DevelApp.SplitLexer.Tests
         public void Phase2_Disambiguation_Success()
         {
             // Arrange
-            var lexer = new StepLexer();
+            var lexer = new DevelApp.StepLexer.StepLexer();
             var pattern = Encoding.UTF8.GetBytes(@"abc");
             var view = new ZeroCopyStringView(pattern);
             

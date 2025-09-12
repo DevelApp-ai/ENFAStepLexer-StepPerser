@@ -25,6 +25,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\DevelApp.StepParser\DevelApp.StepParser.csproj" />
+    <ProjectReference Include="..\DevelApp.StepLexer\DevelApp.StepLexer.csproj" />
   </ItemGroup>
 
 </Project>

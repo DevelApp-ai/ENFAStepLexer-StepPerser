@@ -1,12 +1,12 @@
 using Xunit;
 using FluentAssertions;
-using DevelApp.SplitParser;
-using DevelApp.SplitLexer;
+using DevelApp.StepParser;
+using DevelApp.StepLexer;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 
-namespace DevelApp.SplitParser.Tests
+namespace DevelApp.StepParser.Tests
 {
     public class StepParserTests
     {
@@ -45,7 +45,7 @@ TokenSplitter: Space
             // Assert
             result.Success.Should().BeTrue("Parsing should succeed");
             result.Tokens.Count.Should().BeGreaterThan(0, "Should produce tokens");
-            result.ParseTree.Should().NotBeNull("Should produce parse tree");
+            result.CognitiveGraph.Should().NotBeNull("Should produce cognitive graph");
         }
 
         [Fact]
@@ -128,7 +128,7 @@ TokenSplitter: Space
         public void StepParser_Should_HandleMultipleParsingPaths()
         {
             // Arrange - Create a grammar that forces path splitting
-            var lexer = new StepLexer();
+            var lexer = new DevelApp.StepLexer.StepLexer();
             lexer.AddRule(new TokenRule("A", "a", "", 1));
             lexer.AddRule(new TokenRule("AB", "ab", "", 2)); // Higher priority, creates ambiguity
 
