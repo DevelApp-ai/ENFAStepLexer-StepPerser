@@ -1,7 +1,7 @@
 using Xunit;
-using FluentAssertions;
 using ENFA_Parser.Core;
 using System.Text;
+using System.Linq;
 
 namespace ENFA_Parser.Tests.Core
 {
@@ -17,8 +17,8 @@ namespace ENFA_Parser.Tests.Core
             var view = new ZeroCopyStringView(utf8Data);
             
             // Assert
-            view.Length.Should().Be(utf8Data.Length);
-            view.IsEmpty.Should().BeFalse();
+            Assert.Equal(utf8Data.Length, view.Length);
+            Assert.False(view.IsEmpty);
         }
         
         [Fact]
@@ -32,8 +32,8 @@ namespace ENFA_Parser.Tests.Core
             var slice = view.Slice(7, 5); // "World"
             
             // Assert
-            slice.Length.Should().Be(5);
-            slice.ToString().Should().Be("World");
+            Assert.Equal(5, slice.Length);
+            Assert.Equal("World", slice.ToString());
         }
         
         [Fact]
@@ -44,9 +44,9 @@ namespace ENFA_Parser.Tests.Core
             var view = new ZeroCopyStringView(utf8Data);
             
             // Act & Assert
-            view[0].Should().Be((byte)'A');
-            view[1].Should().Be((byte)'B');
-            view[2].Should().Be((byte)'C');
+            Assert.Equal((byte)'A', view[0]);
+            Assert.Equal((byte)'B', view[1]);
+            Assert.Equal((byte)'C', view[2]);
         }
         
         [Fact]
@@ -59,8 +59,8 @@ namespace ENFA_Parser.Tests.Core
             var view2 = new ZeroCopyStringView(utf8Data2);
             
             // Act & Assert
-            view1.Equals(view2).Should().BeTrue();
-            (view1 == view2).Should().BeTrue();
+            Assert.True(view1.Equals(view2));
+            Assert.True(view1 == view2);
         }
         
         [Fact]
@@ -75,7 +75,7 @@ namespace ENFA_Parser.Tests.Core
             var result = view.ToString();
             
             // Assert
-            result.Should().Be(originalString);
+            Assert.Equal(originalString, result);
         }
     }
     
@@ -97,7 +97,7 @@ namespace ENFA_Parser.Tests.Core
             var result = UTF8Utils.IsAsciiChar(bytes, 0, expected);
             
             // Assert
-            result.Should().Be(expectedResult);
+            Assert.Equal(expectedResult, result);
         }
         
         [Theory]
@@ -113,8 +113,8 @@ namespace ENFA_Parser.Tests.Core
             var (codepoint, bytesConsumed) = UTF8Utils.GetNextCodepoint(utf8Bytes, 0);
             
             // Assert
-            codepoint.Should().Be(expectedCodepoint);
-            bytesConsumed.Should().Be(expectedBytes);
+            Assert.Equal(expectedCodepoint, codepoint);
+            Assert.Equal(expectedBytes, bytesConsumed);
         }
         
         [Theory]
@@ -129,7 +129,7 @@ namespace ENFA_Parser.Tests.Core
             var result = UTF8Utils.IsAsciiDigit(input);
             
             // Assert
-            result.Should().Be(expected);
+            Assert.Equal(expected, result);
         }
         
         [Theory]
@@ -144,7 +144,7 @@ namespace ENFA_Parser.Tests.Core
             var result = UTF8Utils.IsAsciiLetter(input);
             
             // Assert
-            result.Should().Be(expected);
+            Assert.Equal(expected, result);
         }
     }
     
@@ -162,8 +162,8 @@ namespace ENFA_Parser.Tests.Core
             var result = lexer.Phase1_LexicalScan(view);
             
             // Assert
-            result.Should().BeTrue();
-            lexer.Phase1Results.Should().NotBeEmpty();
+            Assert.True(result);
+            Assert.NotEmpty(lexer.Phase1Results);
         }
         
         [Fact]
@@ -178,9 +178,9 @@ namespace ENFA_Parser.Tests.Core
             var result = lexer.Phase1_LexicalScan(view);
             
             // Assert
-            result.Should().BeTrue();
-            lexer.Phase1Results.Should().HaveCountGreaterOrEqualTo(1);
-            lexer.Phase1Results.Where(t => t.HasAlternatives).Should().NotBeEmpty();
+            Assert.True(result);
+            Assert.True(lexer.Phase1Results.Count >= 1);
+            Assert.NotEmpty(lexer.Phase1Results.Where(t => t.HasAlternatives));
         }
         
         [Fact]
@@ -196,9 +196,9 @@ namespace ENFA_Parser.Tests.Core
             var phase2Result = lexer.Phase2_Disambiguation();
             
             // Assert
-            phase1Result.Should().BeTrue();
-            phase2Result.Should().BeTrue();
-            lexer.Phase2Results.Should().NotBeEmpty();
+            Assert.True(phase1Result);
+            Assert.True(phase2Result);
+            Assert.NotEmpty(lexer.Phase2Results);
         }
     }
     
@@ -215,11 +215,11 @@ namespace ENFA_Parser.Tests.Core
             var result = controller.ParsePattern(pattern, "test_pattern");
             
             // Assert
-            result.Should().BeTrue();
+            Assert.True(result);
             
             var parseResults = controller.GetResults();
-            parseResults.Phase1TokenCount.Should().BeGreaterThan(0);
-            parseResults.MemoryUsed.Should().BeGreaterThan(0);
+            Assert.True(parseResults.Phase1TokenCount > 0);
+            Assert.True(parseResults.MemoryUsed > 0);
         }
         
         [Fact]
@@ -233,10 +233,10 @@ namespace ENFA_Parser.Tests.Core
             var result = controller.ParsePattern(utf8Pattern, "test_pattern");
             
             // Assert
-            result.Should().BeTrue();
+            Assert.True(result);
             
             var parseResults = controller.GetResults();
-            parseResults.MemoryUsed.Should().Be(utf8Pattern.Length);
+            Assert.Equal(utf8Pattern.Length, parseResults.MemoryUsed);
         }
         
         [Fact]
@@ -251,10 +251,11 @@ namespace ENFA_Parser.Tests.Core
             var results = controller.GetResults();
             
             // Assert
-            results.Phase1TokenCount.Should().BeGreaterThan(0);
-            results.MemoryUsed.Should().BeGreaterThan(0);
-            results.AmbiguityRatio.Should().BeGreaterOrEqualTo(0);
-            results.PatternHierarchy.Should().NotBeNullOrEmpty();
+            Assert.True(results.Phase1TokenCount > 0);
+            Assert.True(results.MemoryUsed > 0);
+            Assert.True(results.AmbiguityRatio >= 0);
+            Assert.NotNull(results.PatternHierarchy);
+            Assert.NotEmpty(results.PatternHierarchy);
         }
     }
 }

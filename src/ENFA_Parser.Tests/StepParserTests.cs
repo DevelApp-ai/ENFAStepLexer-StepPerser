@@ -1,5 +1,4 @@
 using Xunit;
-using FluentAssertions;
 using ENFA_Parser.Core;
 using System.Collections.Generic;
 using System.Linq;
@@ -42,9 +41,9 @@ TokenSplitter: Space
             var result = _engine.Parse("x + 42 - y");
 
             // Assert
-            result.Success.Should().BeTrue("Parsing should succeed");
-            result.Tokens.Count.Should().BeGreaterThan(0, "Should produce tokens");
-            result.ParseTree.Should().NotBeNull("Should produce parse tree");
+            Assert.True(result.Success); // "Parsing should succeed"
+            Assert.True(result.Tokens.Count > 0); // "Should produce tokens"
+            Assert.NotNull(result.ParseTree); // "Should produce parse tree"
         }
 
         [Fact]
@@ -71,7 +70,7 @@ TokenSplitter: Space
             var result = _engine.Parse("1 + 2 * 3");
 
             // Assert
-            result.Success.Should().BeTrue("Should handle ambiguous parse");
+            Assert.True(result.Success); // "Should handle ambiguous parse"
         }
 
         [Fact]
@@ -86,14 +85,14 @@ TokenSplitter: Space
             contextStack.Push("method", "myMethod");
 
             // Assert
-            contextStack.Current().Should().Be("method");
-            contextStack.InScope("class").Should().BeTrue();
-            contextStack.InScope("global").Should().BeTrue();
-            contextStack.InScope("unknown").Should().BeFalse();
-            contextStack.Depth().Should().Be(3);
+            Assert.Equal("method", contextStack.Current());
+            Assert.True(contextStack.InScope("class"));
+            Assert.True(contextStack.InScope("global"));
+            Assert.False(contextStack.InScope("unknown"));
+            Assert.Equal(3, contextStack.Depth());
 
             var path = contextStack.GetPath();
-            path.Should().BeEquivalentTo(new[] { "global", "class", "method" });
+            Assert.Equal(new[] { "global", "class", "method" }, path);
         }
 
         [Fact]
@@ -113,14 +112,14 @@ TokenSplitter: Space
             var functionX = symbolTable.Lookup("x", "function.main");
             var functionY = symbolTable.Lookup("y", "function.main");
 
-            globalX.Should().NotBeNull();
-            globalX!.Type.Should().Be("int");
+            Assert.NotNull(globalX);
+            Assert.Equal("int", globalX!.Type);
 
-            functionX.Should().NotBeNull();
-            functionX!.Type.Should().Be("float"); // Should find local shadowing global
+            Assert.NotNull(functionX);
+            Assert.Equal("float", functionX!.Type); // Should find local shadowing global
 
-            functionY.Should().NotBeNull();
-            functionY!.Type.Should().Be("string");
+            Assert.NotNull(functionY);
+            Assert.Equal("string", functionY!.Type);
         }
 
         [Fact]
@@ -147,7 +146,7 @@ TokenSplitter: Space
             }
 
             // Assert
-            lexer.ActivePaths.Count.Should().BeGreaterThan(0, "Should maintain multiple paths");
+            Assert.True(lexer.ActivePaths.Count > 0); // "Should maintain multiple paths"
         }
 
         [Fact]
@@ -162,12 +161,12 @@ TokenSplitter: Space
             var view = new ZeroCopyStringView(memory);
 
             // Assert
-            view.Length.Should().Be(utf8Bytes.Length);
-            view.IsEmpty.Should().BeFalse();
+            Assert.Equal(utf8Bytes.Length, view.Length);
+            Assert.False(view.IsEmpty);
 
             // Test slicing (zero-copy operation)
             var slice = view.Slice(0, 5);
-            slice.Length.Should().Be(5);
+            Assert.Equal(5, slice.Length);
         }
 
         [Fact]
@@ -188,12 +187,12 @@ Grammar: MemoryTest
             var memStats = _engine.GetMemoryStats();
 
             // Assert
-            result.Success.Should().BeTrue();
-            memStats.bytesAllocated.Should().BeGreaterThan(0);
-            memStats.activeObjects.Should().BeGreaterThan(0);
+            Assert.True(result.Success);
+            Assert.True(memStats.bytesAllocated > 0);
+            Assert.True(memStats.activeObjects > 0);
             
             // Memory usage should be reasonable for the input size
-            memStats.bytesAllocated.Should().BeLessThan(10000, "Memory usage should be efficient");
+            Assert.True(memStats.bytesAllocated < 10000); // "Memory usage should be efficient"
         }
     }
 }
