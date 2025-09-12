@@ -11,11 +11,32 @@ namespace DevelApp.StepLexer
     /// </summary>
     public class SplittableToken
     {
+        /// <summary>
+        /// Gets the text content of the token as a zero-copy string view
+        /// </summary>
         public ZeroCopyStringView Text { get; }
+        
+        /// <summary>
+        /// Gets or sets the type of the token
+        /// </summary>
         public TokenType Type { get; set; }
+        
+        /// <summary>
+        /// Gets the position of the token in the input
+        /// </summary>
         public int Position { get; }
+        
+        /// <summary>
+        /// Gets or sets the list of alternative tokens when ambiguity is detected
+        /// </summary>
         public List<SplittableToken>? Alternatives { get; set; }
         
+        /// <summary>
+        /// Initializes a new instance of the SplittableToken class
+        /// </summary>
+        /// <param name="text">The text content of the token</param>
+        /// <param name="type">The type of the token</param>
+        /// <param name="position">The position of the token in the input</param>
         public SplittableToken(ZeroCopyStringView text, TokenType type, int position)
         {
             Text = text;
@@ -26,6 +47,7 @@ namespace DevelApp.StepLexer
         /// <summary>
         /// Split this token into multiple alternatives when ambiguity is detected
         /// </summary>
+        /// <param name="alternatives">Array of alternative token text and type pairs</param>
         public void Split(params (ZeroCopyStringView text, TokenType type)[] alternatives)
         {
             Alternatives ??= new List<SplittableToken>();
@@ -36,6 +58,9 @@ namespace DevelApp.StepLexer
             }
         }
         
+        /// <summary>
+        /// Gets a value indicating whether this token has alternatives
+        /// </summary>
         public bool HasAlternatives => Alternatives != null && Alternatives.Count > 0;
     }
     
@@ -44,39 +69,147 @@ namespace DevelApp.StepLexer
     /// </summary>
     public class ParsedState
     {
+        /// <summary>
+        /// Gets or sets the token type for this parsed state
+        /// </summary>
         public TokenType TokenType { get; init; }
+        
+        /// <summary>
+        /// Gets or sets the text content of the parsed state
+        /// </summary>
         public string Text { get; init; } = string.Empty;
+        
+        /// <summary>
+        /// Gets or sets the position of the parsed state in the input
+        /// </summary>
         public int Position { get; init; }
+        
+        /// <summary>
+        /// Gets or sets a value indicating whether this parsed state is ambiguous
+        /// </summary>
         public bool IsAmbiguous { get; init; }
     }
     
+    /// <summary>
+    /// Enumeration of token types used in both regex pattern parsing and source code tokenization
+    /// </summary>
     public enum TokenType
     {
         // Regex pattern tokens
+        /// <summary>
+        /// Literal character token in regex patterns
+        /// </summary>
         Literal,
+        
+        /// <summary>
+        /// Escape sequence token (e.g., \n, \t, \\)
+        /// </summary>
         EscapeSequence,
+        
+        /// <summary>
+        /// Character class token (e.g., [a-z], [^0-9])
+        /// </summary>
         CharacterClass,
+        
+        /// <summary>
+        /// Group start token (opening parenthesis)
+        /// </summary>
         GroupStart,
+        
+        /// <summary>
+        /// Group end token (closing parenthesis)
+        /// </summary>
         GroupEnd,
+        
+        /// <summary>
+        /// Special group token (e.g., (?:), (?=), (?!))
+        /// </summary>
         SpecialGroup,
+        
+        /// <summary>
+        /// Quantifier token (e.g., *, +, ?, {n,m})
+        /// </summary>
         Quantifier,
+        
+        /// <summary>
+        /// Lazy quantifier token (e.g., *?, +?, ??)
+        /// </summary>
         LazyQuantifier,
+        
+        /// <summary>
+        /// Alternation token (pipe symbol |)
+        /// </summary>
         Alternation,
+        
+        /// <summary>
+        /// Start anchor token (caret ^)
+        /// </summary>
         StartAnchor,
+        
+        /// <summary>
+        /// End anchor token (dollar sign $)
+        /// </summary>
         EndAnchor,
+        
+        /// <summary>
+        /// Any character token (dot .)
+        /// </summary>
         AnyChar,
+        
+        /// <summary>
+        /// Hexadecimal escape token (e.g., \x41)
+        /// </summary>
         HexEscape,
+        
+        /// <summary>
+        /// Unicode escape token (e.g., \u0041, \U00000041)
+        /// </summary>
         UnicodeEscape,
+        
+        /// <summary>
+        /// Unicode property token (e.g., \p{L}, \P{N})
+        /// </summary>
         UnicodeProperty,
         
         // Source code tokens
+        /// <summary>
+        /// Identifier token in source code
+        /// </summary>
         Identifier,
+        
+        /// <summary>
+        /// Numeric literal token
+        /// </summary>
         Number,
+        
+        /// <summary>
+        /// String literal token
+        /// </summary>
         String,
+        
+        /// <summary>
+        /// Keyword token (language-specific reserved words)
+        /// </summary>
         Keyword,
+        
+        /// <summary>
+        /// Operator token (arithmetic, logical, assignment operators)
+        /// </summary>
         Operator,
+        
+        /// <summary>
+        /// Whitespace token (spaces, tabs, line breaks)
+        /// </summary>
         Whitespace,
+        
+        /// <summary>
+        /// Comment token (single-line and multi-line comments)
+        /// </summary>
         Comment,
+        
+        /// <summary>
+        /// Punctuation token (semicolons, commas, brackets)
+        /// </summary>
         Punctuation
     }
 
@@ -85,15 +218,48 @@ namespace DevelApp.StepLexer
     /// </summary>
     public class StepToken
     {
+        /// <summary>
+        /// Gets or sets the type of the token
+        /// </summary>
         public string Type { get; set; } = string.Empty;
+        
+        /// <summary>
+        /// Gets or sets the value/content of the token
+        /// </summary>
         public string Value { get; set; } = string.Empty;
+        
+        /// <summary>
+        /// Gets or sets the location of the token in the source code
+        /// </summary>
         public ICodeLocation Location { get; set; } = new CodeLocation();
+        
+        /// <summary>
+        /// Gets or sets the context in which the token was found
+        /// </summary>
         public string Context { get; set; } = string.Empty;
+        
+        /// <summary>
+        /// Gets or sets a value indicating whether this token can be split into alternatives
+        /// </summary>
         public bool IsSplittable { get; set; }
+        
+        /// <summary>
+        /// Gets or sets the list of split tokens when ambiguity is resolved
+        /// </summary>
         public List<StepToken>? SplitTokens { get; set; }
 
+        /// <summary>
+        /// Initializes a new instance of the StepToken class
+        /// </summary>
         public StepToken() { }
 
+        /// <summary>
+        /// Initializes a new instance of the StepToken class with specified parameters
+        /// </summary>
+        /// <param name="type">The type of the token</param>
+        /// <param name="value">The value/content of the token</param>
+        /// <param name="location">The location of the token in the source code</param>
+        /// <param name="context">The context in which the token was found</param>
         public StepToken(string type, string value, ICodeLocation location, string context = "")
         {
             Type = type;
@@ -102,6 +268,10 @@ namespace DevelApp.StepLexer
             Context = context;
         }
 
+        /// <summary>
+        /// Returns a string representation of the token
+        /// </summary>
+        /// <returns>A string in the format "Type:'Value' @Location"</returns>
         public override string ToString()
         {
             return $"{Type}:'{Value}' @{Location}";
@@ -113,19 +283,52 @@ namespace DevelApp.StepLexer
     /// </summary>
     public class LexerPath
     {
+        /// <summary>
+        /// Gets or sets the unique identifier for this path
+        /// </summary>
         public int PathId { get; set; }
+        
+        /// <summary>
+        /// Gets or sets the current position in the input stream
+        /// </summary>
         public int Position { get; set; }
+        
+        /// <summary>
+        /// Gets or sets the list of tokens found on this path
+        /// </summary>
         public List<StepToken> Tokens { get; set; } = new();
+        
+        /// <summary>
+        /// Gets or sets the current parsing context
+        /// </summary>
         public string CurrentContext { get; set; } = string.Empty;
+        
+        /// <summary>
+        /// Gets or sets a value indicating whether this path is still valid
+        /// </summary>
         public bool IsValid { get; set; } = true;
+        
+        /// <summary>
+        /// Gets or sets the state dictionary for context-specific data
+        /// </summary>
         public Dictionary<string, object> State { get; set; } = new();
 
+        /// <summary>
+        /// Initializes a new instance of the LexerPath class
+        /// </summary>
+        /// <param name="pathId">The unique identifier for this path</param>
+        /// <param name="position">The starting position in the input stream</param>
         public LexerPath(int pathId, int position = 0)
         {
             PathId = pathId;
             Position = position;
         }
 
+        /// <summary>
+        /// Creates a clone of this path with a new path ID
+        /// </summary>
+        /// <param name="newPathId">The path ID for the cloned path</param>
+        /// <returns>A new LexerPath instance that is a copy of this path</returns>
         public LexerPath Clone(int newPathId)
         {
             return new LexerPath(newPathId, Position)
@@ -143,14 +346,48 @@ namespace DevelApp.StepLexer
     /// </summary>
     public class TokenRule
     {
+        /// <summary>
+        /// Gets or sets the name of the token rule
+        /// </summary>
         public string Name { get; set; } = string.Empty;
+        
+        /// <summary>
+        /// Gets or sets the pattern to match for this rule
+        /// </summary>
         public string Pattern { get; set; } = string.Empty;
+        
+        /// <summary>
+        /// Gets or sets the context in which this rule applies
+        /// </summary>
         public string Context { get; set; } = string.Empty;
+        
+        /// <summary>
+        /// Gets or sets the priority of this rule (higher values have higher priority)
+        /// </summary>
         public int Priority { get; set; } = 0;
+        
+        /// <summary>
+        /// Gets or sets a value indicating whether this rule is a fragment (used by other rules)
+        /// </summary>
         public bool IsFragment { get; set; }
+        
+        /// <summary>
+        /// Gets or sets a value indicating whether tokens matched by this rule should be skipped
+        /// </summary>
         public bool IsSkippable { get; set; }
+        
+        /// <summary>
+        /// Gets or sets the action to execute when this rule matches
+        /// </summary>
         public Action<StepToken>? Action { get; set; }
 
+        /// <summary>
+        /// Initializes a new instance of the TokenRule class
+        /// </summary>
+        /// <param name="name">The name of the token rule</param>
+        /// <param name="pattern">The pattern to match for this rule</param>
+        /// <param name="context">The context in which this rule applies</param>
+        /// <param name="priority">The priority of this rule</param>
         public TokenRule(string name, string pattern, string context = "", int priority = 0)
         {
             Name = name;
@@ -795,9 +1032,24 @@ namespace DevelApp.StepLexer
     /// </summary>
     public class LexerStepResult
     {
+        /// <summary>
+        /// Gets or sets the list of new tokens created during this step
+        /// </summary>
         public List<StepToken> NewTokens { get; set; } = new();
+        
+        /// <summary>
+        /// Gets or sets the list of context changes that occurred during this step
+        /// </summary>
         public List<string> ContextChanges { get; set; } = new();
+        
+        /// <summary>
+        /// Gets or sets the number of active parsing paths
+        /// </summary>
         public int ActivePathCount { get; set; }
+        
+        /// <summary>
+        /// Gets or sets a value indicating whether parsing is complete
+        /// </summary>
         public bool IsComplete { get; set; }
     }
 
@@ -806,8 +1058,19 @@ namespace DevelApp.StepLexer
     /// </summary>
     public class PathStepResult
     {
+        /// <summary>
+        /// Gets or sets the list of tokens found on this path
+        /// </summary>
         public List<StepToken> Tokens { get; set; } = new();
+        
+        /// <summary>
+        /// Gets or sets the list of paths resulting from this processing step
+        /// </summary>
         public List<LexerPath> Paths { get; set; } = new();
+        
+        /// <summary>
+        /// Gets or sets the list of context changes that occurred on this path
+        /// </summary>
         public List<string> ContextChanges { get; set; } = new();
     }
 }
