@@ -360,16 +360,17 @@ namespace ENFA_Parser.Core
             // Simplified pattern matching - in a real implementation, this would use proper regex/pattern engines
             var pattern = rule.Pattern;
             
-            if (pattern.StartsWith("/") && pattern.EndsWith("/"))
+            if (pattern.StartsWith("/") && pattern.EndsWith("/") && pattern.Length >= 2)
             {
                 // Regex pattern - simplified implementation
-                var regex = pattern[1..^1];
+                var regex = pattern.Length > 2 ? pattern[1..^1] : "";
                 return TryMatchRegex(regex, input);
             }
-            else if (pattern.StartsWith("\"") && pattern.EndsWith("\""))
+            else if ((pattern.StartsWith("\"") && pattern.EndsWith("\"")) || 
+                     (pattern.StartsWith("'") && pattern.EndsWith("'")))
             {
-                // Literal string match
-                var literal = pattern[1..^1];
+                // Literal string match - handle both double and single quotes
+                var literal = pattern.Length > 2 ? pattern[1..^1] : "";
                 return TryMatchLiteral(literal, input);
             }
             

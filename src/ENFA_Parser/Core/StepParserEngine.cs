@@ -152,13 +152,20 @@ namespace ENFA_Parser.Core
                 // Phase 1: Lexical analysis
                 _lexer.Initialize(inputMemory, fileName);
                 var tokens = new List<StepToken>();
+                var maxLexerSteps = inputBytes.Length * 10; // Safety limit
+                var lexerSteps = 0;
 
-                while (!_lexer.ActivePaths.All(p => !p.IsValid || p.Position >= inputBytes.Length))
+                while (!_lexer.ActivePaths.All(p => !p.IsValid || p.Position >= inputBytes.Length) && lexerSteps < maxLexerSteps)
                 {
                     var lexerResult = _lexer.Step();
                     tokens.AddRange(lexerResult.NewTokens);
+                    lexerSteps++;
 
                     if (lexerResult.IsComplete)
+                        break;
+                        
+                    // Safety check - if no progress is made, break
+                    if (lexerResult.ActivePathCount == 0)
                         break;
                 }
 
@@ -166,10 +173,13 @@ namespace ENFA_Parser.Core
 
                 // Phase 2: Syntactic analysis with GLR parsing
                 _parser.Initialize(tokens);
+                var maxParserSteps = tokens.Count * 20; // Safety limit
+                var parserSteps = 0;
                 
-                while (true)
+                while (parserSteps < maxParserSteps)
                 {
                     var parserResult = _parser.Step();
+                    parserSteps++;
                     
                     if (parserResult.IsComplete)
                     {

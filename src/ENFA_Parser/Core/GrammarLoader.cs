@@ -144,8 +144,25 @@ namespace ENFA_Parser.Core
         /// </summary>
         private bool IsTokenRule(string line)
         {
-            // Token rules start with < and contain > followed by ::=
-            return line.StartsWith("<") && line.Contains(">::=") && !line.Contains("(");
+            // Token rules start with < and contain > followed by ::= (with or without space)
+            if (!line.StartsWith("<") || !(line.Contains(">::=") || line.Contains("> ::=")))
+                return false;
+            
+            // Token rules must not have context modifiers (parentheses)
+            if (line.Contains("("))
+                return false;
+                
+            // Extract the right-hand side after ::=
+            var parts = line.Split(new[] { "::=" }, StringSplitOptions.None);
+            if (parts.Length < 2)
+                return false;
+                
+            var rhs = parts[1].Trim();
+            
+            // Token rules have regex patterns /.../, string literals '...' or "...", or simple patterns
+            // Production rules have references to other rules <RULE> or alternatives |
+            return rhs.StartsWith("/") || rhs.StartsWith("'") || rhs.StartsWith("\"") || 
+                   (!rhs.Contains("<") && !rhs.Contains("|"));
         }
 
         /// <summary>
@@ -211,9 +228,9 @@ namespace ENFA_Parser.Core
         /// </summary>
         private bool IsProductionRule(string line)
         {
-            // Production rules contain < > and ::= but may have context modifiers
-            return line.StartsWith("<") && line.Contains(">::=") && 
-                   (line.Contains("(") || !IsTokenRule(line));
+            // Production rules start with < and contain ::= but are not token rules
+            return line.StartsWith("<") && (line.Contains(">::=") || line.Contains("> ::=")) && 
+                   !IsTokenRule(line);
         }
 
         /// <summary>
