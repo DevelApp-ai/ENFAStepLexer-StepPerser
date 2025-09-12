@@ -39,6 +39,7 @@
     <!-- Documentation -->
     <DocumentationFile>bin\$(Configuration)\$(TargetFramework)\$(AssemblyName).xml</DocumentationFile>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <NoWarn>$(NoWarn);CS1591</NoWarn> <!-- Disable missing XML comment warnings for legacy project -->
   </PropertyGroup>
 
   <ItemGroup>
