@@ -42,8 +42,8 @@ TokenSplitter: Space
             var result = _engine.Parse("x + 42 - y");
 
             // Assert
-            Assert.True(result.Success); // "Parsing should succeed"
-            Assert.True(result.Tokens.Count > 0); // "Should produce tokens"
+            Assert.True(result.Success, $"Parsing should succeed. Errors: {string.Join(", ", result.Errors ?? new List<string>())}");
+            Assert.True(result.Tokens?.Count > 0, "Should produce tokens");
             Assert.NotNull(result.CognitiveGraph); // "Should produce cognitive graph"
         }
 

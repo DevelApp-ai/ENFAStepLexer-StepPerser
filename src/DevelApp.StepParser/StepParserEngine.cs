@@ -562,7 +562,7 @@ namespace DevelApp.StepParser
                     return new RefactoringResult
                     {
                         Success = true,
-                        Message = $"Renamed '{symbolName}' to '{newName}' ({references.Length} references)",
+                        Message = $"Renamed '{symbolName}' to '{newName}' ({references.Count()} references)",
                         Changes = changes
                     };
                 }

@@ -187,8 +187,8 @@ namespace DevelApp.StepParser
         /// </summary>
         private bool IsTokenRule(string line)
         {
-            // Token rules start with < and contain > followed by ::=
-            return line.StartsWith("<") && line.Contains(">::=") && !line.Contains("(");
+            // Token rules start with < and contain > followed by ::= (with possible spaces)
+            return line.StartsWith("<") && line.Contains(">") && line.Contains("::=") && !line.Contains("(");
         }
 
         /// <summary>

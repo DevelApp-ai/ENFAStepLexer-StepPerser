@@ -10,6 +10,200 @@ using CognitiveGraph.Schema;
 namespace DevelApp.StepParser
 {
     /// <summary>
+    /// Interface for hierarchical context stack management
+    /// </summary>
+    public interface IContextStack
+    {
+        /// <summary>Push a new context onto the stack.</summary>
+        void Push(string context, string? name = null);
+        
+        /// <summary>Pop the current context from the stack.</summary>
+        void Pop();
+        
+        /// <summary>Get the current context.</summary>
+        string Current();
+        
+        /// <summary>Check if a context is in scope.</summary>
+        bool InScope(string context);
+        
+        /// <summary>Get the current depth of the stack.</summary>
+        int Depth();
+        
+        /// <summary>Get the full path from root to current context.</summary>
+        string[] GetPath();
+        
+        /// <summary>Check if the stack contains the specified context.</summary>
+        bool Contains(string context);
+    }
+
+    /// <summary>
+    /// Interface for scope-aware symbol table management
+    /// </summary>
+    public interface IScopeAwareSymbolTable
+    {
+        /// <summary>Declare a symbol in the specified scope.</summary>
+        void Declare(string name, string type, string scope, ICodeLocation location);
+        
+        /// <summary>Look up a symbol in the specified scope and parent scopes.</summary>
+        SymbolEntry? Lookup(string name, string scope);
+        
+        /// <summary>Check if a symbol exists in the specified scope.</summary>
+        bool Exists(string name, string scope);
+        
+        /// <summary>Get all symbols in the specified scope.</summary>
+        IEnumerable<SymbolEntry> GetSymbols(string scope);
+        
+        /// <summary>Find all references to a symbol across all scopes.</summary>
+        IEnumerable<SymbolEntry> FindAllReferences(string name);
+    }
+
+    /// <summary>
+    /// Symbol table entry
+    /// </summary>
+    public class SymbolEntry
+    {
+        /// <summary>Gets or sets the name of the symbol.</summary>
+        public string Name { get; set; } = string.Empty;
+        
+        /// <summary>Gets or sets the type of the symbol.</summary>
+        public string Type { get; set; } = string.Empty;
+        
+        /// <summary>Gets or sets the scope where the symbol is declared.</summary>
+        public string Scope { get; set; } = string.Empty;
+        
+        /// <summary>Gets or sets the location where the symbol is declared.</summary>
+        public ICodeLocation Location { get; set; } = new CodeLocation();
+        
+        /// <summary>Gets or sets the value associated with the symbol.</summary>
+        public string Value { get; set; } = string.Empty;
+        
+        /// <summary>Gets or sets whether this symbol can be inlined.</summary>
+        public bool CanInline { get; set; } = false;
+    }
+
+    /// <summary>
+    /// Hierarchical context stack implementation
+    /// </summary>
+    public class ContextStack : IContextStack
+    {
+        private readonly Stack<(string context, string? name)> _stack = new();
+
+        /// <summary>Push a new context onto the stack.</summary>
+        public void Push(string context, string? name = null)
+        {
+            _stack.Push((context, name));
+        }
+
+        /// <summary>Pop the current context from the stack.</summary>
+        public void Pop()
+        {
+            if (_stack.Count > 0)
+                _stack.Pop();
+        }
+
+        /// <summary>Get the current context.</summary>
+        public string Current()
+        {
+            return _stack.Count > 0 ? _stack.Peek().context : "";
+        }
+
+        /// <summary>Check if a context is in scope.</summary>
+        public bool InScope(string context)
+        {
+            return _stack.Any(item => item.context == context);
+        }
+
+        /// <summary>Get the current depth of the stack.</summary>
+        public int Depth()
+        {
+            return _stack.Count;
+        }
+
+        /// <summary>Get the full path from root to current context.</summary>
+        public string[] GetPath()
+        {
+            var path = _stack.Reverse().Select(item => item.context).ToArray();
+            return path;
+        }
+
+        /// <summary>Check if the stack contains the specified context.</summary>
+        public bool Contains(string context)
+        {
+            return InScope(context);
+        }
+    }
+
+    /// <summary>
+    /// Scope-aware symbol table implementation
+    /// </summary>
+    public class ScopeAwareSymbolTable : IScopeAwareSymbolTable
+    {
+        private readonly Dictionary<string, List<SymbolEntry>> _symbols = new();
+
+        /// <summary>Declare a symbol in the specified scope.</summary>
+        public void Declare(string name, string type, string scope, ICodeLocation location)
+        {
+            if (!_symbols.ContainsKey(scope))
+                _symbols[scope] = new List<SymbolEntry>();
+
+            var entry = new SymbolEntry
+            {
+                Name = name,
+                Type = type,
+                Scope = scope,
+                Location = location
+            };
+
+            _symbols[scope].Add(entry);
+        }
+
+        /// <summary>Look up a symbol in the specified scope and parent scopes.</summary>
+        public SymbolEntry? Lookup(string name, string scope)
+        {
+            // First check the current scope
+            if (_symbols.ContainsKey(scope))
+            {
+                var symbol = _symbols[scope].LastOrDefault(s => s.Name == name);
+                if (symbol != null)
+                    return symbol;
+            }
+
+            // Then check parent scopes by walking up the scope hierarchy
+            var parts = scope.Split('.');
+            for (int i = parts.Length - 1; i >= 0; i--)
+            {
+                var parentScope = string.Join(".", parts.Take(i));
+                if (!string.IsNullOrEmpty(parentScope) && _symbols.ContainsKey(parentScope))
+                {
+                    var symbol = _symbols[parentScope].LastOrDefault(s => s.Name == name);
+                    if (symbol != null)
+                        return symbol;
+                }
+            }
+
+            return null;
+        }
+
+        /// <summary>Check if a symbol exists in the specified scope.</summary>
+        public bool Exists(string name, string scope)
+        {
+            return Lookup(name, scope) != null;
+        }
+
+        /// <summary>Get all symbols in the specified scope.</summary>
+        public IEnumerable<SymbolEntry> GetSymbols(string scope)
+        {
+            return _symbols.ContainsKey(scope) ? _symbols[scope] : Enumerable.Empty<SymbolEntry>();
+        }
+
+        /// <summary>Find all references to a symbol across all scopes.</summary>
+        public IEnumerable<SymbolEntry> FindAllReferences(string name)
+        {
+            return _symbols.SelectMany(kvp => kvp.Value).Where(s => s.Name == name);
+        }
+    }
+
+    /// <summary>
     /// Node reference in the CognitiveGraph for parser paths
     /// </summary>
     public struct GraphNodeRef
