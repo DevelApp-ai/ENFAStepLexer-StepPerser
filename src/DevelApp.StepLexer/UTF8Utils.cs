@@ -211,12 +211,20 @@ namespace DevelApp.StepLexer
         private Span<byte> _buffer;
         private int _position;
         
+        /// <summary>
+        /// Initializes a new instance of the UTF8StringBuilder with the specified buffer
+        /// </summary>
+        /// <param name="buffer">The buffer to use for building the UTF-8 string</param>
         public UTF8StringBuilder(Span<byte> buffer)
         {
             _buffer = buffer;
             _position = 0;
         }
         
+        /// <summary>
+        /// Appends a single byte to the builder
+        /// </summary>
+        /// <param name="b">The byte to append</param>
         public void Append(byte b)
         {
             if (_position < _buffer.Length)
@@ -225,6 +233,10 @@ namespace DevelApp.StepLexer
             }
         }
         
+        /// <summary>
+        /// Appends a span of bytes to the builder
+        /// </summary>
+        /// <param name="bytes">The bytes to append</param>
         public void Append(ReadOnlySpan<byte> bytes)
         {
             int toCopy = Math.Min(bytes.Length, _buffer.Length - _position);
@@ -232,10 +244,20 @@ namespace DevelApp.StepLexer
             _position += toCopy;
         }
         
+        /// <summary>
+        /// Returns the current content as a ReadOnlySpan of bytes
+        /// </summary>
+        /// <returns>A ReadOnlySpan representing the UTF-8 content built so far</returns>
         public ReadOnlySpan<byte> AsSpan() => _buffer.Slice(0, _position);
         
+        /// <summary>
+        /// Gets the current length of the content in bytes
+        /// </summary>
         public int Length => _position;
         
+        /// <summary>
+        /// Gets a value indicating whether the buffer is full
+        /// </summary>
         public bool IsFull => _position >= _buffer.Length;
     }
 }

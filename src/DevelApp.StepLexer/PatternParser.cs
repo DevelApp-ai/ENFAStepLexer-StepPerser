@@ -9,7 +9,14 @@ namespace DevelApp.StepLexer
     /// </summary>
     public enum ParserType
     {
+        /// <summary>
+        /// Regular expression pattern parsing
+        /// </summary>
         Regex,
+        
+        /// <summary>
+        /// Grammar-based pattern parsing
+        /// </summary>
         Grammar
     }
 
@@ -23,6 +30,10 @@ namespace DevelApp.StepLexer
         private readonly ParserType _parserType;
         private ReadOnlyMemory<byte> _inputBuffer;
         
+        /// <summary>
+        /// Initializes a new instance of the PatternParser class with the specified parser type
+        /// </summary>
+        /// <param name="parserType">The type of parser to use (Regex or Grammar)</param>
         public PatternParser(ParserType parserType)
         {
             _parserType = parserType;
@@ -155,11 +166,29 @@ namespace DevelApp.StepLexer
     /// </summary>
     public class ParsingResult
     {
+        /// <summary>
+        /// Gets the number of tokens generated in phase 1 parsing
+        /// </summary>
         public int Phase1TokenCount { get; init; }
+        
+        /// <summary>
+        /// Gets the number of ambiguous tokens that required splitting
+        /// </summary>
         public int AmbiguousTokenCount { get; init; }
+        
+        /// <summary>
+        /// Gets the amount of memory used during parsing in bytes
+        /// </summary>
         public long MemoryUsed { get; init; }
+        
+        /// <summary>
+        /// Gets the pattern hierarchy as a string representation
+        /// </summary>
         public string PatternHierarchy { get; init; } = string.Empty;
         
+        /// <summary>
+        /// Gets the ratio of ambiguous tokens to total tokens (0.0 to 1.0)
+        /// </summary>
         public double AmbiguityRatio => Phase1TokenCount > 0 ? (double)AmbiguousTokenCount / Phase1TokenCount : 0.0;
     }
 }
