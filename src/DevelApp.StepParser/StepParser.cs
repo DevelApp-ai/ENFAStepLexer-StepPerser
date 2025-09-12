@@ -14,13 +14,33 @@ namespace DevelApp.StepParser
     /// </summary>
     public struct GraphNodeRef
     {
+        /// <summary>Gets or sets the offset of the node in the graph.</summary>
         public uint NodeOffset { get; set; }
+        
+        /// <summary>Gets or sets the symbol identifier for this node.</summary>
         public ushort SymbolId { get; set; }
+        
+        /// <summary>Gets or sets the type of the node.</summary>
         public ushort NodeType { get; set; }
+        
+        /// <summary>Gets or sets the name of the production rule this node represents.</summary>
         public string RuleName { get; set; }
+        
+        /// <summary>Gets or sets the value associated with this node.</summary>
         public string Value { get; set; }
+        
+        /// <summary>Gets or sets the location in the source code for this node.</summary>
         public ICodeLocation Location { get; set; }
 
+        /// <summary>
+        /// Initializes a new instance of the GraphNodeRef struct.
+        /// </summary>
+        /// <param name="nodeOffset">The offset of the node in the graph</param>
+        /// <param name="symbolId">The symbol identifier for this node</param>
+        /// <param name="nodeType">The type of the node</param>
+        /// <param name="ruleName">The name of the production rule this node represents</param>
+        /// <param name="value">The value associated with this node</param>
+        /// <param name="location">The location in the source code for this node</param>
         public GraphNodeRef(uint nodeOffset, ushort symbolId, ushort nodeType, string ruleName, string value, ICodeLocation location)
         {
             NodeOffset = nodeOffset;
@@ -37,14 +57,33 @@ namespace DevelApp.StepParser
     /// </summary>
     public class ProductionRule
     {
+        /// <summary>Gets or sets the name of the production rule.</summary>
         public string Name { get; set; } = string.Empty;
+        
+        /// <summary>Gets or sets the right-hand side symbols of the production rule.</summary>
         public List<string> RightHandSide { get; set; } = new();
+        
+        /// <summary>Gets or sets the context in which this rule applies.</summary>
         public string Context { get; set; } = string.Empty;
+        
+        /// <summary>Gets or sets the precedence level for this rule.</summary>
         public int Precedence { get; set; } = 0;
+        
+        /// <summary>Gets or sets the associativity of this rule (none, left, right).</summary>
         public string Associativity { get; set; } = "none"; // none, left, right
+        
+        /// <summary>Gets or sets the semantic action to execute when this rule is applied.</summary>
         public Action<GraphNodeRef, List<GraphNodeRef>, CognitiveGraphBuilder>? SemanticAction { get; set; }
+        
+        /// <summary>Gets or sets the precondition that must be satisfied for this rule to apply.</summary>
         public Func<ParseContext, bool>? Precondition { get; set; }
 
+        /// <summary>
+        /// Initializes a new instance of the ProductionRule class.
+        /// </summary>
+        /// <param name="name">The name of the production rule</param>
+        /// <param name="rightHandSide">The right-hand side symbols of the production rule</param>
+        /// <param name="context">The context in which this rule applies (optional)</param>
         public ProductionRule(string name, List<string> rightHandSide, string context = "")
         {
             Name = name;
@@ -52,6 +91,10 @@ namespace DevelApp.StepParser
             Context = context;
         }
 
+        /// <summary>
+        /// Returns a string representation of the production rule.
+        /// </summary>
+        /// <returns>A string in the format "Name ::= RightHandSide"</returns>
         public override string ToString()
         {
             return $"{Name} ::= {string.Join(" ", RightHandSide)}";
@@ -63,21 +106,47 @@ namespace DevelApp.StepParser
     /// </summary>
     public class ParserPath
     {
+        /// <summary>Gets or sets the unique identifier for this parse path.</summary>
         public int PathId { get; set; }
+        
+        /// <summary>Gets or sets the parse stack containing graph node references.</summary>
         public Stack<GraphNodeRef> ParseStack { get; set; } = new();
+        
+        /// <summary>Gets or sets the current position in the token stream.</summary>
         public int TokenPosition { get; set; }
+        
+        /// <summary>Gets or sets the current parser state.</summary>
         public string CurrentState { get; set; } = string.Empty;
+        
+        /// <summary>Gets or sets whether this parse path is still valid.</summary>
         public bool IsValid { get; set; } = true;
+        
+        /// <summary>Gets or sets the list of production rules currently being processed.</summary>
         public List<ProductionRule> ActiveProductions { get; set; } = new();
+        
+        /// <summary>Gets or sets the state dictionary for parser context information.</summary>
         public Dictionary<string, object> State { get; set; } = new();
+        
+        /// <summary>Gets or sets the quality score for this parse path.</summary>
         public float Score { get; set; } = 1.0f; // Path quality score
+        
+        /// <summary>Gets or sets the list of node offsets for ambiguity handling.</summary>
         public List<uint> NodeOffsets { get; set; } = new(); // Track node offsets for ambiguity handling
 
+        /// <summary>
+        /// Initializes a new instance of the ParserPath class.
+        /// </summary>
+        /// <param name="pathId">The unique identifier for this parse path</param>
         public ParserPath(int pathId)
         {
             PathId = pathId;
         }
 
+        /// <summary>
+        /// Creates a deep copy of this parser path with a new path ID.
+        /// </summary>
+        /// <param name="newPathId">The unique identifier for the cloned path</param>
+        /// <returns>A new ParserPath instance with copied state</returns>
         public ParserPath Clone(int newPathId)
         {
             var clonedStack = new Stack<GraphNodeRef>();
@@ -107,15 +176,35 @@ namespace DevelApp.StepParser
     /// </summary>
     public class ParseContext
     {
+        /// <summary>Gets or sets the hierarchical context stack for scope management.</summary>
         public IContextStack ContextStack { get; set; } = new ContextStack();
+        
+        /// <summary>Gets or sets the scope-aware symbol table for identifier resolution.</summary>
         public IScopeAwareSymbolTable SymbolTable { get; set; } = new ScopeAwareSymbolTable();
+        
+        /// <summary>Gets or sets the current location in the source code being parsed.</summary>
         public ICodeLocation CurrentLocation { get; set; } = new CodeLocation();
+        
+        /// <summary>Gets or sets the list of tokens being parsed.</summary>
         public List<StepToken> Tokens { get; set; } = new();
+        
+        /// <summary>Gets or sets the current index in the token stream.</summary>
         public int CurrentTokenIndex { get; set; }
+        
+        /// <summary>Gets or sets the variables dictionary for context-specific data.</summary>
         public Dictionary<string, object> Variables { get; set; } = new();
+        
+        /// <summary>Gets or sets the list of currently active parsing contexts.</summary>
         public List<string> ActiveContexts { get; set; } = new();
 
+        /// <summary>Gets the current token being processed, or null if at end of stream.</summary>
         public StepToken? CurrentToken => CurrentTokenIndex < Tokens.Count ? Tokens[CurrentTokenIndex] : null;
+        
+        /// <summary>
+        /// Gets a look-ahead token at the specified offset from the current position.
+        /// </summary>
+        /// <param name="offset">The number of tokens to look ahead (default: 1)</param>
+        /// <returns>The token at the look-ahead position, or null if beyond end of stream</returns>
         public StepToken? LookAhead(int offset = 1) => (CurrentTokenIndex + offset) < Tokens.Count ? Tokens[CurrentTokenIndex + offset] : null;
     }
 
@@ -567,11 +656,22 @@ namespace DevelApp.StepParser
     /// </summary>
     public class ParserStepResult
     {
+        /// <summary>Gets or sets the list of reductions performed during this step.</summary>
         public List<string> Reductions { get; set; } = new();
+        
+        /// <summary>Gets or sets the list of context changes that occurred during this step.</summary>
         public List<string> ContextChanges { get; set; } = new();
+        
+        /// <summary>Gets or sets the number of active parse paths after this step.</summary>
         public int ActivePathCount { get; set; }
+        
+        /// <summary>Gets or sets the current position in the token stream after this step.</summary>
         public int CurrentPosition { get; set; }
+        
+        /// <summary>Gets or sets whether the parsing is complete after this step.</summary>
         public bool IsComplete { get; set; }
+        
+        /// <summary>Gets or sets the list of CognitiveGraphs representing parse results.</summary>
         public List<CognitiveGraph.CognitiveGraph> CognitiveGraphs { get; set; } = new();
     }
 
@@ -580,8 +680,13 @@ namespace DevelApp.StepParser
     /// </summary>
     public class ParserPathResult
     {
+        /// <summary>Gets or sets the list of new parser paths created during processing.</summary>
         public List<ParserPath> NewPaths { get; set; } = new();
+        
+        /// <summary>Gets or sets the list of reductions performed on this path.</summary>
         public List<string> Reductions { get; set; } = new();
+        
+        /// <summary>Gets or sets the list of context changes that occurred on this path.</summary>
         public List<string> ContextChanges { get; set; } = new();
     }
 }

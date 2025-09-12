@@ -14,10 +14,19 @@ namespace DevelApp.StepParser
     /// </summary>
     public class SelectionCriteria
     {
+        /// <summary>Gets or sets the regex pattern for matching target locations.</summary>
         public string? Regex { get; set; }
+        
+        /// <summary>Gets or sets the range specification with start and end markers.</summary>
         public (string start, string end)? Range { get; set; }
+        
+        /// <summary>Gets or sets the structural selection with type and member inclusion options.</summary>
         public (string type, bool includeFields, bool includeMethods)? Structural { get; set; }
+        
+        /// <summary>Gets or sets the boundary specification for selection limits.</summary>
         public string? Boundaries { get; set; }
+        
+        /// <summary>Gets or sets the grammar-based selection criteria.</summary>
         public string? Grammar { get; set; }
     }
 
@@ -26,10 +35,19 @@ namespace DevelApp.StepParser
     /// </summary>
     public class RefactoringOperation
     {
+        /// <summary>Gets or sets the name of the refactoring operation.</summary>
         public string Name { get; set; } = string.Empty;
+        
+        /// <summary>Gets or sets the applicable contexts where this operation can be used.</summary>
         public string[] ApplicableContexts { get; set; } = Array.Empty<string>();
+        
+        /// <summary>Gets or sets the preconditions function that determines if the operation can be applied.</summary>
         public Func<ParseContext, bool>? Preconditions { get; set; }
+        
+        /// <summary>Gets or sets the execution function that performs the refactoring operation.</summary>
         public Func<ICodeLocation, ParseContext, RefactoringResult>? Execute { get; set; }
+        
+        /// <summary>Gets or sets the description of what the refactoring operation does.</summary>
         public string Description { get; set; } = string.Empty;
     }
 
@@ -38,9 +56,16 @@ namespace DevelApp.StepParser
     /// </summary>
     public class RefactoringResult
     {
+        /// <summary>Gets or sets whether the refactoring operation was successful.</summary>
         public bool Success { get; set; }
+        
+        /// <summary>Gets or sets the message describing the result of the operation.</summary>
         public string Message { get; set; } = string.Empty;
+        
+        /// <summary>Gets or sets the list of code changes made during the refactoring.</summary>
         public List<CodeChange> Changes { get; set; } = new();
+        
+        /// <summary>Gets or sets the location of the modified node after refactoring.</summary>
         public ICodeLocation? ModifiedNodeLocation { get; set; }
     }
 
@@ -49,9 +74,16 @@ namespace DevelApp.StepParser
     /// </summary>
     public class CodeChange
     {
+        /// <summary>Gets or sets the location where the code change is applied.</summary>
         public ICodeLocation Location { get; set; } = new CodeLocation();
+        
+        /// <summary>Gets or sets the original text before the change.</summary>
         public string OriginalText { get; set; } = string.Empty;
+        
+        /// <summary>Gets or sets the new text after the change.</summary>
         public string NewText { get; set; } = string.Empty;
+        
+        /// <summary>Gets or sets the type of change (insert, delete, replace).</summary>
         public string ChangeType { get; set; } = string.Empty; // insert, delete, replace
     }
 
@@ -60,13 +92,28 @@ namespace DevelApp.StepParser
     /// </summary>
     public class StepParsingResult
     {
+        /// <summary>Gets or sets whether the parsing operation was successful.</summary>
         public bool Success { get; set; }
+        
+        /// <summary>Gets or sets the primary CognitiveGraph result from parsing.</summary>
         public CognitiveGraph.CognitiveGraph? CognitiveGraph { get; set; }
+        
+        /// <summary>Gets or sets the list of ambiguous parse results when multiple interpretations are possible.</summary>
         public List<CognitiveGraph.CognitiveGraph> AmbiguousParses { get; set; } = new();
+        
+        /// <summary>Gets or sets the tokens generated during parsing.</summary>
         public List<StepToken> Tokens { get; set; } = new();
+        
+        /// <summary>Gets or sets the list of errors encountered during parsing.</summary>
         public List<string> Errors { get; set; } = new();
+        
+        /// <summary>Gets or sets the time taken to complete the parsing operation.</summary>
         public TimeSpan ParseTime { get; set; }
+        
+        /// <summary>Gets or sets the number of parse paths explored during ambiguity resolution.</summary>
         public int PathCount { get; set; }
+        
+        /// <summary>Gets or sets the parsing context with scope and semantic information.</summary>
         public ParseContext Context { get; set; } = new ParseContext();
     }
 

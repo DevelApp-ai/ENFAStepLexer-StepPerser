@@ -13,16 +13,37 @@ namespace DevelApp.StepParser
     /// </summary>
     public class GrammarDefinition
     {
+        /// <summary>Gets or sets the name of the grammar definition.</summary>
         public string Name { get; set; } = string.Empty;
+        
+        /// <summary>Gets or sets the token splitter strategy (default: "Space").</summary>
         public string TokenSplitter { get; set; } = "Space";
+        
+        /// <summary>Gets or sets the list of token rules for lexical analysis.</summary>
         public List<TokenRule> TokenRules { get; set; } = new();
+        
+        /// <summary>Gets or sets the list of production rules for parsing.</summary>
         public List<ProductionRule> ProductionRules { get; set; } = new();
+        
+        /// <summary>Gets or sets the precedence values for operators and productions.</summary>
         public Dictionary<string, int> Precedence { get; set; } = new();
+        
+        /// <summary>Gets or sets the associativity rules (left, right, none) for operators.</summary>
         public Dictionary<string, string> Associativity { get; set; } = new();
+        
+        /// <summary>Gets or sets the list of available parsing contexts.</summary>
         public List<string> Contexts { get; set; } = new();
+        
+        /// <summary>Gets or sets the semantic actions triggered during parsing.</summary>
         public Dictionary<string, Action<GraphNodeRef, List<GraphNodeRef>, CognitiveGraph.Builder.CognitiveGraphBuilder>> SemanticActions { get; set; } = new();
+        
+        /// <summary>Gets or sets the list of imported grammar files.</summary>
         public List<string> Imports { get; set; } = new();
+        
+        /// <summary>Gets or sets whether this grammar can be inherited by other grammars.</summary>
         public bool IsInheritable { get; set; }
+        
+        /// <summary>Gets or sets the format type of the grammar (ANTLR, Bison, etc.).</summary>
         public string FormatType { get; set; } = string.Empty;
     }
 
@@ -31,14 +52,34 @@ namespace DevelApp.StepParser
     /// </summary>
     public class ContextProjection
     {
+        /// <summary>Gets or sets the name of the production rule this projection applies to.</summary>
         public string RuleName { get; set; } = string.Empty;
+        
+        /// <summary>Gets or sets the context in which this projection is active.</summary>
         public string Context { get; set; } = string.Empty;
+        
+        /// <summary>Gets or sets the projection pattern that triggers this rule.</summary>
         public string ProjectionPattern { get; set; } = string.Empty;
+        
+        /// <summary>Gets or sets the code triggered when this projection matches.</summary>
         public string TriggeredCode { get; set; } = string.Empty;
+        
+        /// <summary>Gets or sets the parameters for the projection.</summary>
         public List<string> Parameters { get; set; } = new();
+        
+        /// <summary>Gets or sets the condition function that determines if the projection matches.</summary>
         public Func<ParseContext, bool>? MatchCondition { get; set; }
+        
+        /// <summary>Gets or sets the action to execute when the projection is triggered.</summary>
         public Action<ICodeLocation, ParseContext>? ExecuteAction { get; set; }
 
+        /// <summary>
+        /// Initializes a new instance of the ContextProjection class.
+        /// </summary>
+        /// <param name="ruleName">The name of the production rule</param>
+        /// <param name="context">The context in which this projection is active</param>
+        /// <param name="pattern">The projection pattern that triggers this rule</param>
+        /// <param name="code">The code triggered when this projection matches</param>
         public ContextProjection(string ruleName, string context, string pattern, string code)
         {
             RuleName = ruleName;
