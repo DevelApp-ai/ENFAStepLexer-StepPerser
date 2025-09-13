@@ -7,6 +7,9 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <GeneratePackageOnBuild>false</GeneratePackageOnBuild>
     
+    <!-- Suppress ICU4N SDK version warnings since we're constrained to .NET 8.0 -->
+    <NoWarn>ICU4N_IDE_0001;NU5104</NoWarn>
+    
     <!-- Package Information -->
     <PackageId>DevelApp.StepLexer</PackageId>
     <Title>Step Lexer - Advanced UTF-8 Tokenization with Multi-Path Support</Title>

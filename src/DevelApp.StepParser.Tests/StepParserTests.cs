@@ -550,8 +550,8 @@ TokenSplitter: Space
             
             // Verify semantic action infrastructure is loaded
             Assert.NotNull(_engine.CurrentGrammar);
-            Assert.True(_engine.CurrentGrammar.ProductionRules.Any(r => r.Name == "variable_declaration"));
-            Assert.True(_engine.CurrentGrammar.ProductionRules.Any(r => r.Name == "variable_usage"));
+            Assert.Contains(_engine.CurrentGrammar.ProductionRules, r => r.Name == "variable_declaration");
+            Assert.Contains(_engine.CurrentGrammar.ProductionRules, r => r.Name == "variable_usage");
         }
 
         [Fact]
@@ -679,8 +679,8 @@ TokenSplitter: Space
             
             // Verify grammar rules are loaded with semantic actions
             Assert.NotNull(_engine.CurrentGrammar);
-            Assert.True(_engine.CurrentGrammar.ProductionRules.Any(r => r.Name == "class_declaration"));
-            Assert.True(_engine.CurrentGrammar.ProductionRules.Any(r => r.Name == "function_declaration"));
+            Assert.Contains(_engine.CurrentGrammar.ProductionRules, r => r.Name == "class_declaration");
+            Assert.Contains(_engine.CurrentGrammar.ProductionRules, r => r.Name == "function_declaration");
         }
 
         [Fact]

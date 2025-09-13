@@ -7,6 +7,9 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <GeneratePackageOnBuild>false</GeneratePackageOnBuild>
     
+    <!-- Suppress ICU4N SDK version warnings since we're constrained to .NET 8.0 -->
+    <NoWarn>ICU4N_IDE_0001;NU5104</NoWarn>
+    
     <!-- Package Information -->
     <PackageId>DevelApp.StepParser</PackageId>
     <Title>Step Parser - GLR-Style Multi-Path Parsing with CognitiveGraph Integration</Title>
