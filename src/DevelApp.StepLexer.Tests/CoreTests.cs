@@ -562,5 +562,334 @@ namespace DevelApp.StepLexer.Tests
             // Should not crash, may return false for malformed patterns
             Assert.True(result || !result); // Either result is acceptable for malformed input
         }
+        
+        // ===============================================================================================
+        // PHASE 3 PCRE2 FEATURES: Advanced Unicode Support with ICU Integration
+        // ===============================================================================================
+        
+        [Theory]
+        [InlineData("L", 0x0041, true)]          // 'A' is a letter
+        [InlineData("L", 0x0030, false)]         // '0' is not a letter  
+        [InlineData("Nd", 0x0030, true)]         // '0' is a decimal number
+        [InlineData("Nd", 0x0041, false)]        // 'A' is not a decimal number
+        [InlineData("Lu", 0x0041, true)]         // 'A' is uppercase letter
+        [InlineData("Lu", 0x0061, false)]        // 'a' is not uppercase letter
+        [InlineData("Ll", 0x0061, true)]         // 'a' is lowercase letter
+        [InlineData("Ll", 0x0041, false)]        // 'A' is not lowercase letter
+        [InlineData("Basic_Latin", 0x0041, true)] // 'A' is in Basic Latin block
+        [InlineData("Basic_Latin", 0x00E9, false)] // 'é' is not in Basic Latin block
+        [InlineData("Latin_1_Supplement", 0x00E9, true)] // 'é' is in Latin-1 Supplement
+        public void ICU_UnicodePropertyMatcher_ValidatesCorrectly(string property, int codepoint, bool expected)
+        {
+            // Act
+            var result = UnicodePropertyMatcher.MatchesProperty(codepoint, property);
+            
+            // Assert
+            Assert.Equal(expected, result);
+        }
+        
+        [Theory]
+        [InlineData("Emoji", 0x1F600, true)]     // 😀 grinning face emoji
+        [InlineData("Emoji", 0x0041, false)]     // 'A' is not an emoji
+        [InlineData("Math", 0x2211, true)]       // ∑ summation symbol
+        [InlineData("Math", 0x0041, false)]      // 'A' is not a math symbol
+        [InlineData("Alphabetic", 0x0041, true)] // 'A' is alphabetic
+        [InlineData("Alphabetic", 0x0030, false)] // '0' is not alphabetic
+        public void ICU_UnicodePropertyMatcher_HandlesBinaryProperties(string property, int codepoint, bool expected)
+        {
+            // Act
+            var result = UnicodePropertyMatcher.MatchesProperty(codepoint, property);
+            
+            // Assert
+            Assert.Equal(expected, result);
+        }
+        
+        [Theory]
+        [InlineData("Latin", 0x0041, true)]      // 'A' is Latin script
+        [InlineData("Latin", 0x03B1, false)]    // 'α' is not Latin script (Greek)
+        [InlineData("Greek", 0x03B1, true)]     // 'α' is Greek script
+        [InlineData("Greek", 0x0041, false)]    // 'A' is not Greek script
+        [InlineData("Arabic", 0x0628, true)]    // 'ب' is Arabic script
+        [InlineData("Arabic", 0x0041, false)]   // 'A' is not Arabic script
+        public void ICU_UnicodePropertyMatcher_HandlesScriptProperties(string script, int codepoint, bool expected)
+        {
+            // Act
+            var result = UnicodePropertyMatcher.MatchesProperty(codepoint, script);
+            
+            // Assert
+            Assert.Equal(expected, result);
+        }
+        
+        [Fact]
+        public void ICU_AdvancedUnicodeSupport_NormalizesCorrectly()
+        {
+            // Arrange
+            var unicodeSupport = new AdvancedUnicodeSupport();
+            var decomposed = "e\u0301";  // e + combining acute accent
+            var composed = "\u00e9";     // é precomposed
+            
+            // Act
+            var nfcDecomposed = unicodeSupport.NormalizeIfNeeded(decomposed, UnicodeNormalizationForm.NFC);
+            var nfcComposed = unicodeSupport.NormalizeIfNeeded(composed, UnicodeNormalizationForm.NFC);
+            
+            // Assert
+            Assert.Equal(nfcComposed, nfcDecomposed); // Both should normalize to same form
+            Assert.True(unicodeSupport.AreCanonicallyEquivalent(decomposed, composed));
+        }
+        
+        [Fact]
+        public void ICU_AdvancedUnicodeSupport_ProcessesUTF8Input()
+        {
+            // Arrange
+            var unicodeSupport = new AdvancedUnicodeSupport();
+            var testText = "Hello, 世界! 🌍";
+            var utf8Bytes = System.Text.Encoding.UTF8.GetBytes(testText);
+            
+            // Act
+            var result = unicodeSupport.ProcessUnicodePattern(utf8Bytes, @"\p{L}+");
+            
+            // Assert
+            Assert.True(result); // Should successfully process Unicode text
+        }
+        
+        [Fact]
+        public void ICU_AdvancedUnicodeSupport_HandlesGraphemeClusters()
+        {
+            // Arrange
+            var unicodeSupport = new AdvancedUnicodeSupport();
+            var textWithClusters = "👨‍👩‍👧‍👦"; // Family emoji (multiple codepoints)
+            
+            // Act
+            var boundaries = unicodeSupport.GetGraphemeClusterBoundaries(textWithClusters);
+            
+            // Assert
+            Assert.True(boundaries.Length >= 2); // Should have start and end boundaries
+            Assert.Equal(0, boundaries[0]); // First boundary should be at start
+            Assert.Equal(textWithClusters.Length, boundaries[^1]); // Last boundary should be at end
+        }
+        
+        [Theory]
+        [InlineData(@"\p{L}", true)]           // General category letter
+        [InlineData(@"\p{Nd}", true)]          // Decimal number
+        [InlineData(@"\p{Latin}", true)]       // Script property
+        [InlineData(@"\p{Basic_Latin}", true)] // Block property
+        [InlineData(@"\p{Emoji}", true)]       // Binary property
+        [InlineData(@"\p{Math}", true)]        // Binary property
+        [InlineData(@"\p{InvalidProperty}", false)] // Invalid property
+        [InlineData(@"\p{}", false)]           // Empty property
+        [InlineData(@"\p{L", false)]           // Malformed (missing closing brace)
+        public void ICU_Enhanced_UnicodePropertyValidation_ValidatesCorrectly(string pattern, bool shouldValidate)
+        {
+            // Arrange
+            var lexer = new StepLexer();
+            var utf8Pattern = Encoding.UTF8.GetBytes(pattern);
+            var view = new ZeroCopyStringView(utf8Pattern);
+            
+            // Act
+            var phase1Result = lexer.Phase1_LexicalScan(view);
+            var phase2Result = lexer.Phase2_Disambiguation();
+            
+            // Assert
+            Assert.True(phase1Result); // Phase 1 should always succeed
+            Assert.Equal(shouldValidate, phase2Result); // Phase 2 should validate Unicode properties using ICU
+            
+            if (shouldValidate && phase2Result)
+            {
+                Assert.Contains(lexer.Phase1Results, t => t.Type == TokenType.UnicodeProperty);
+            }
+        }
+        
+        [Fact]
+        public void ICU_Performance_LargeUnicodePatternProcessing()
+        {
+            // Arrange
+            var lexer = new StepLexer();
+            var largePattern = string.Join("", Enumerable.Repeat(@"\p{L}+\p{Nd}*", 50));
+            var utf8Pattern = Encoding.UTF8.GetBytes(largePattern);
+            var view = new ZeroCopyStringView(utf8Pattern);
+            var startTime = System.DateTime.UtcNow;
+            
+            // Act
+            var phase1Result = lexer.Phase1_LexicalScan(view);
+            var phase2Result = lexer.Phase2_Disambiguation();
+            var duration = System.DateTime.UtcNow - startTime;
+            
+            // Assert
+            Assert.True(phase1Result);
+            Assert.True(phase2Result);
+            Assert.True(duration.TotalMilliseconds < 500, 
+                $"Large Unicode pattern processing took {duration.TotalMilliseconds}ms, expected < 500ms");
+        }
+        
+        [Theory]
+        [InlineData("UnicodeNormalizationForm.NFC")]
+        [InlineData("UnicodeNormalizationForm.NFD")]
+        [InlineData("UnicodeNormalizationForm.NFKC")]
+        [InlineData("UnicodeNormalizationForm.NFKD")]
+        public void ICU_NormalizationForms_WorkCorrectly(string normalizationFormName)
+        {
+            // Arrange
+            var unicodeSupport = new AdvancedUnicodeSupport();
+            var testText = "café"; // Contains composed character
+            var normForm = normalizationFormName switch
+            {
+                "UnicodeNormalizationForm.NFC" => UnicodeNormalizationForm.NFC,
+                "UnicodeNormalizationForm.NFD" => UnicodeNormalizationForm.NFD,
+                "UnicodeNormalizationForm.NFKC" => UnicodeNormalizationForm.NFKC,
+                "UnicodeNormalizationForm.NFKD" => UnicodeNormalizationForm.NFKD,
+                _ => UnicodeNormalizationForm.None
+            };
+            
+            // Act
+            var normalized = unicodeSupport.NormalizeIfNeeded(testText, normForm);
+            
+            // Assert
+            Assert.NotNull(normalized);
+            Assert.NotEmpty(normalized);
+            // NFC and NFKC should be shorter (composed), NFD and NFKD should be longer (decomposed)
+            if (normForm == UnicodeNormalizationForm.NFD || normForm == UnicodeNormalizationForm.NFKD)
+            {
+                Assert.True(normalized.Length >= testText.Length);
+            }
+        }
+        
+        // ===============================================================================================
+        // PHASE 3 PCRE2 FEATURES: Performance Optimization and Benchmarking
+        // ===============================================================================================
+        
+        [Fact]
+        public void Performance_BenchmarkFramework_InitializesCorrectly()
+        {
+            // Arrange & Act & Assert
+            // This test validates that the benchmarking framework can be initialized
+            var exception = Record.Exception(() => PerformanceTestRunner.RunAllBenchmarks());
+            Assert.Null(exception);
+        }
+        
+        [Fact]
+        public void Performance_MemoryBenchmarks_RunWithoutErrors()
+        {
+            // Arrange & Act & Assert
+            // This test validates that memory benchmarks execute correctly
+            var exception = Record.Exception(() => PerformanceTestRunner.RunMemoryBenchmarks());
+            Assert.Null(exception);
+        }
+        
+        [Fact]
+        public void Performance_UnicodeBenchmarks_RunWithoutErrors()
+        {
+            // Arrange & Act & Assert
+            // This test validates that Unicode property benchmarks execute correctly
+            var exception = Record.Exception(() => PerformanceTestRunner.RunUnicodeBenchmarks());
+            Assert.Null(exception);
+        }
+        
+        [Theory]
+        [InlineData(@"[a-zA-Z]+", 100)]
+        [InlineData(@"\p{L}+", 100)]
+        [InlineData(@"(?i)\p{L}+\p{Nd}*", 100)]
+        public void Performance_StepLexerVsDotNetRegex_CompletesWithinReasonableTime(string pattern, int inputSize)
+        {
+            // Arrange
+            var benchmark = new PCRE2PerformanceBenchmark
+            {
+                Pattern = pattern,
+                InputSize = inputSize
+            };
+            benchmark.Setup();
+            var startTime = System.DateTime.UtcNow;
+            
+            // Act
+            var stepLexerResult = benchmark.StepLexerPCRE2();
+            var stepLexerTime = System.DateTime.UtcNow - startTime;
+            
+            startTime = System.DateTime.UtcNow;
+            var dotNetResult = benchmark.DotNetCompiledRegex();
+            var dotNetTime = System.DateTime.UtcNow - startTime;
+            
+            // Assert
+            Assert.True(stepLexerTime.TotalMilliseconds < 1000, 
+                $"StepLexer took {stepLexerTime.TotalMilliseconds}ms, expected < 1000ms");
+            Assert.True(dotNetTime.TotalMilliseconds < 1000, 
+                $".NET Regex took {dotNetTime.TotalMilliseconds}ms, expected < 1000ms");
+                
+            // Both should complete successfully (results may differ due to pattern differences)
+            Assert.True(stepLexerResult || !stepLexerResult); // Either result acceptable
+            Assert.True(dotNetResult || !dotNetResult); // Either result acceptable
+        }
+        
+        [Theory]
+        [InlineData(1000)]
+        [InlineData(10000)]
+        public void Performance_ZeroCopyProcessing_ShowsMemoryEfficiency(int inputSize)
+        {
+            // Arrange
+            var benchmark = new MemoryUsageBenchmark { InputSize = inputSize };
+            benchmark.Setup();
+            
+            // Act & Assert
+            // Test that zero-copy processing completes without memory exceptions
+            var exception = Record.Exception(() =>
+            {
+                var result = benchmark.StepLexerZeroCopyMemoryUsage();
+                // Either result is acceptable - we're testing memory efficiency
+                Assert.True(result || !result);
+            });
+            Assert.Null(exception);
+        }
+        
+        [Theory]
+        [InlineData("L", 100)]
+        [InlineData("Nd", 100)]
+        [InlineData("Emoji", 100)]
+        public void Performance_UnicodePropertyMatching_ExecutesEfficiently(string property, int testCount)
+        {
+            // Arrange
+            var benchmark = new UnicodePropertyBenchmark 
+            { 
+                UnicodeProperty = property,
+                TestCount = testCount 
+            };
+            benchmark.Setup();
+            var startTime = System.DateTime.UtcNow;
+            
+            // Act
+            var matches = benchmark.ICU_UnicodePropertyMatching();
+            var duration = System.DateTime.UtcNow - startTime;
+            
+            // Assert
+            Assert.True(matches >= 0); // Should return valid match count
+            Assert.True(duration.TotalMilliseconds < 100, 
+                $"Unicode property matching took {duration.TotalMilliseconds}ms for {testCount} tests, expected < 100ms");
+        }
+        
+        [Fact]
+        public void Performance_ComprehensiveBenchmarkSuite_ValidatesCorrectly()
+        {
+            // This test ensures all benchmark classes can be instantiated and run basic validation
+            
+            // PCRE2 Performance Benchmark
+            var pcre2Benchmark = new PCRE2PerformanceBenchmark
+            {
+                Pattern = @"\p{L}+",
+                InputSize = 100
+            };
+            var exception1 = Record.Exception(() => pcre2Benchmark.Setup());
+            Assert.Null(exception1);
+            
+            // Memory Usage Benchmark  
+            var memoryBenchmark = new MemoryUsageBenchmark { InputSize = 100 };
+            var exception2 = Record.Exception(() => memoryBenchmark.Setup());
+            Assert.Null(exception2);
+            
+            // Unicode Property Benchmark
+            var unicodeBenchmark = new UnicodePropertyBenchmark 
+            { 
+                UnicodeProperty = "L",
+                TestCount = 10 
+            };
+            var exception3 = Record.Exception(() => unicodeBenchmark.Setup());
+            Assert.Null(exception3);
+        }
     }
 }

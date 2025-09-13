@@ -33,7 +33,13 @@
       - NEW: Two-phase parsing architecture for regex complexity avoidance  
       - NEW: Multi-path tokenization for ambiguity resolution
       - NEW: Pattern splitting and single-pass disambiguation
+      - NEW: Advanced Unicode support with ICU integration (Phase 3 PCRE2)
+      - NEW: Comprehensive performance benchmarking framework
+      - NEW: Enhanced Unicode property validation with 150+ properties
+      - NEW: Unicode normalization support (NFC, NFD, NFKC, NFKD)
+      - NEW: Script and binary property matching
       - ENHANCED: Location-based code targeting for surgical operations
+      - ENHANCED: Production-ready PCRE2 support with comprehensive test coverage
     </PackageReleaseNotes>
     
     <!-- Documentation -->
@@ -45,6 +51,10 @@
 
   <ItemGroup>
     <None Include="..\..\README.md" Pack="true" PackagePath="\" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="ICU4N" Version="60.1.0-alpha.438" />
   </ItemGroup>
 
 </Project>

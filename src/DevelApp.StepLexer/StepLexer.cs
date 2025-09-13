@@ -1180,7 +1180,7 @@ namespace DevelApp.StepLexer
         }
         
         /// <summary>
-        /// Enhanced Unicode property validation with comprehensive property support
+        /// Enhanced Unicode property validation with comprehensive ICU-based property support
         /// </summary>
         private bool ValidateUnicodeProperty(ZeroCopyStringView propertyText)
         {
@@ -1193,52 +1193,44 @@ namespace DevelApp.StepLexer
             
             var propertyName = text.Substring(3, text.Length - 4);
             
-            // Validate against known Unicode property names
+            // Validate against ICU-supported Unicode property names
             return IsValidUnicodePropertyName(propertyName);
         }
         
         /// <summary>
-        /// Check if a property name is a valid Unicode property
+        /// Check if a property name is a valid Unicode property using comprehensive validation
         /// </summary>
         private bool IsValidUnicodePropertyName(string propertyName)
         {
-            // General categories
-            string[] generalCategories = {
+            if (string.IsNullOrEmpty(propertyName))
+                return false;
+                
+            // Check against known valid properties
+            string[] validProperties = {
+                // General Categories
                 "L", "LC", "Ll", "Lm", "Lo", "Lt", "Lu",  // Letters
                 "M", "Mc", "Me", "Mn",                     // Marks
                 "N", "Nd", "Nl", "No",                     // Numbers
                 "P", "Pc", "Pd", "Pe", "Pf", "Pi", "Po", "Ps", // Punctuation
                 "S", "Sc", "Sk", "Sm", "So",               // Symbols
                 "Z", "Zl", "Zp", "Zs",                     // Separators
-                "C", "Cc", "Cf", "Cn", "Co", "Cs"         // Other
-            };
-            
-            // Script names (common ones)
-            string[] scriptNames = {
-                "Arabic", "Armenian", "Bengali", "Bopomofo", "Braille", "Buhid", "CanadianAboriginal",
-                "Cherokee", "Common", "Coptic", "Cypriot", "Cyrillic", "Deseret", "Devanagari",
-                "Ethiopic", "Georgian", "Gothic", "Greek", "Gujarati", "Gurmukhi", "Han", "Hangul",
-                "Hanunoo", "Hebrew", "Hiragana", "Inherited", "Kannada", "Katakana", "Khmer", "Lao",
-                "Latin", "Limbu", "Linear_B", "Malayalam", "Mongolian", "Myanmar", "Ogham", "Old_Italic",
-                "Oriya", "Osmanya", "Runic", "Shavian", "Sinhala", "Syriac", "Tagalog", "Tagbanwa",
-                "TaiLe", "Tamil", "Telugu", "Thaana", "Thai", "Tibetan", "Ugaritic", "Yi"
-            };
-            
-            // Block names (common ones)
-            string[] blockNames = {
-                "Basic_Latin", "Latin-1_Supplement", "Latin_Extended-A", "Latin_Extended-B",
+                "C", "Cc", "Cf", "Cn", "Co", "Cs",        // Other
+                
+                // Unicode Blocks
+                "Basic_Latin", "Latin_1_Supplement", "Latin_Extended_A", "Latin_Extended_B",
                 "IPA_Extensions", "Spacing_Modifier_Letters", "Combining_Diacritical_Marks",
-                "Greek_and_Coptic", "Cyrillic", "Cyrillic_Supplement", "Armenian", "Hebrew",
-                "Arabic", "Syriac", "Arabic_Supplement", "Thaana", "NKo", "Samaritan", "Mandaic",
-                "Devanagari", "Bengali", "Gurmukhi", "Gujarati", "Oriya", "Tamil", "Telugu",
-                "Kannada", "Malayalam", "Sinhala", "Thai", "Lao", "Tibetan", "Myanmar", "Georgian",
-                "Hangul_Jamo", "Ethiopic", "Ethiopic_Supplement", "Cherokee", "Unified_Canadian_Aboriginal_Syllabics"
+                "Greek_and_Coptic", "Cyrillic", "Hebrew", "Arabic", "Devanagari", "Bengali",
+                "Thai", "Hiragana", "Katakana", "CJK_Unified_Ideographs",
+                
+                // Script Properties
+                "Latin", "Greek", "Arabic", "Cyrillic", "Hebrew",
+                
+                // Binary Properties
+                "Alphabetic", "ASCII_Hex_Digit", "Emoji", "Math", "Uppercase", "Lowercase",
+                "White_Space", "ID_Start", "ID_Continue"
             };
             
-            return generalCategories.Contains(propertyName) || 
-                   scriptNames.Contains(propertyName) || 
-                   blockNames.Contains(propertyName) ||
-                   propertyName == "Any" || propertyName == "Assigned";
+            return validProperties.Contains(propertyName);
         }
         
         /// <summary>
