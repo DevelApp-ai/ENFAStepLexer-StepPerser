@@ -203,13 +203,27 @@ namespace DevelApp.StepParser
                 _lexer.Initialize(inputMemory, fileName);
                 var tokens = new List<StepToken>();
 
-                while (!_lexer.ActivePaths.All(p => !p.IsValid || p.Position >= inputBytes.Length))
+                // Safety limit to prevent infinite loops in lexer
+                var maxLexerSteps = inputBytes.Length * 10; // Allow reasonable processing overhead
+                var lexerStepCount = 0;
+                var lastTokenCount = 0;
+
+                while (!_lexer.ActivePaths.All(p => !p.IsValid || p.Position >= inputBytes.Length) && lexerStepCount < maxLexerSteps)
                 {
                     var lexerResult = _lexer.Step();
                     tokens.AddRange(lexerResult.NewTokens);
+                    lexerStepCount++;
 
                     if (lexerResult.IsComplete)
                         break;
+
+                    // Progress check: if no new tokens after several steps, break to avoid infinite loop
+                    if (lexerStepCount % 10 == 0 && tokens.Count == lastTokenCount)
+                    {
+                        result.Errors.Add($"Lexer appears stuck at step {lexerStepCount} with no progress");
+                        break;
+                    }
+                    lastTokenCount = tokens.Count;
                 }
 
                 result.Tokens = tokens;
@@ -217,9 +231,16 @@ namespace DevelApp.StepParser
                 // Phase 2: Syntactic analysis with GLR parsing
                 _parser.Initialize(tokens, input);
                 
-                while (true)
+                // Safety limit to prevent infinite loops in parser
+                var maxParserSteps = tokens.Count * 20; // Allow reasonable processing overhead
+                var parserStepCount = 0;
+                var lastPosition = -1;
+                var stuckCount = 0;
+
+                while (parserStepCount < maxParserSteps)
                 {
                     var parserResult = _parser.Step();
+                    parserStepCount++;
                     
                     if (parserResult.IsComplete)
                     {
@@ -233,6 +254,22 @@ namespace DevelApp.StepParser
                     {
                         result.Errors.Add($"Parse error at position {parserResult.CurrentPosition}");
                         break;
+                    }
+
+                    // Progress check: if position hasn't advanced in several steps, break to avoid infinite loop
+                    if (parserResult.CurrentPosition == lastPosition)
+                    {
+                        stuckCount++;
+                        if (stuckCount > 5)
+                        {
+                            result.Errors.Add($"Parser appears stuck at position {parserResult.CurrentPosition} after {parserStepCount} steps");
+                            break;
+                        }
+                    }
+                    else
+                    {
+                        stuckCount = 0;
+                        lastPosition = parserResult.CurrentPosition;
                     }
                 }
 
