@@ -164,6 +164,8 @@ jobs:
     environment: production
     steps:
     - uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
       
     - name: Setup .NET
       uses: actions/setup-dotnet@v4
@@ -176,9 +178,47 @@ jobs:
         name: nuget-packages
         path: ./nupkg
         
-    - name: Publish to NuGet.org
-      if: needs.calculate-version.outputs.isPrerelease == 'false'
+    - name: Check release conditions
+      id: release_check
       run: |
+        echo "Checking release conditions..."
+        
+        # Check if this is a stable release (not prerelease)
+        IS_STABLE="${{ needs.calculate-version.outputs.isPrerelease == 'false' }}"
+        echo "Is stable release: $IS_STABLE"
+        
+        # Check if this is the first release (no existing tags)
+        if ! git tag -l | grep -q .; then
+          IS_FIRST_RELEASE="true"
+          echo "First release detected: true"
+        else
+          IS_FIRST_RELEASE="false"
+          echo "First release detected: false"
+        fi
+        
+        # Determine if we should proceed with release
+        if [[ "$IS_STABLE" == "true" || "$IS_FIRST_RELEASE" == "true" ]]; then
+          SHOULD_RELEASE="true"
+          echo "Should create release: true"
+        else
+          SHOULD_RELEASE="false"
+          echo "Should create release: false"
+        fi
+        
+        echo "is_stable=$IS_STABLE" >> $GITHUB_OUTPUT
+        echo "is_first_release=$IS_FIRST_RELEASE" >> $GITHUB_OUTPUT
+        echo "should_release=$SHOULD_RELEASE" >> $GITHUB_OUTPUT
+        
+    - name: Publish to NuGet.org
+      if: steps.release_check.outputs.should_release == 'true'
+      run: |
+        # Check which type of release this is
+        if [[ "${{ steps.release_check.outputs.is_first_release }}" == "true" ]]; then
+          echo "First release detected - publishing initial NuGet packages"
+        else
+          echo "Subsequent release detected - using standard publishing"
+        fi
+        
         for package in ./nupkg/*.nupkg; do
           echo "Publishing $package to NuGet.org..."
           dotnet nuget push "$package" \
@@ -196,19 +236,56 @@ jobs:
       with:
         fetch-depth: 0
       
+    - name: Check release conditions
+      id: release_check
+      run: |
+        echo "Checking release conditions..."
+        
+        # Check if this is a stable release (not prerelease)
+        IS_STABLE="${{ needs.calculate-version.outputs.isPrerelease == 'false' }}"
+        echo "Is stable release: $IS_STABLE"
+        
+        # Check if this is the first release (no existing tags)
+        if ! git tag -l | grep -q .; then
+          IS_FIRST_RELEASE="true"
+          echo "First release detected: true"
+        else
+          IS_FIRST_RELEASE="false"
+          echo "First release detected: false"
+        fi
+        
+        # Determine if we should proceed with release
+        if [[ "$IS_STABLE" == "true" || "$IS_FIRST_RELEASE" == "true" ]]; then
+          SHOULD_RELEASE="true"
+          echo "Should create release: true"
+        else
+          SHOULD_RELEASE="false"
+          echo "Should create release: false"
+        fi
+        
+        echo "is_stable=$IS_STABLE" >> $GITHUB_OUTPUT
+        echo "is_first_release=$IS_FIRST_RELEASE" >> $GITHUB_OUTPUT
+        echo "should_release=$SHOULD_RELEASE" >> $GITHUB_OUTPUT
+      
     - name: Create GitHub Release
-      if: needs.calculate-version.outputs.isPrerelease == 'false'
+      if: steps.release_check.outputs.should_release == 'true'
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       run: |
-        # Create and push the git tag first
-        git tag v${{ needs.calculate-version.outputs.version }}
-        git push origin v${{ needs.calculate-version.outputs.version }}
-        
-        # Create the GitHub release
-        gh release create v${{ needs.calculate-version.outputs.version }} \
-          --title "Release v${{ needs.calculate-version.outputs.version }}" \
-          --notes "## Changes in v${{ needs.calculate-version.outputs.version }}
+        # Check which type of release this is
+        if [[ "${{ steps.release_check.outputs.is_first_release }}" == "true" ]]; then
+          echo "First release detected - creating initial release tag"
+          RELEASE_VERSION="${{ needs.calculate-version.outputs.version }}"
+          # For initial release, use the major.minor.patch without prerelease suffix
+          CLEAN_VERSION=$(echo "$RELEASE_VERSION" | sed 's/-.*$//')
+          echo "Creating release for version: $CLEAN_VERSION"
+          git tag "v$CLEAN_VERSION"
+          git push origin "v$CLEAN_VERSION"
+          
+          # Create the GitHub release
+          gh release create "v$CLEAN_VERSION" \
+            --title "Release v$CLEAN_VERSION" \
+            --notes "## Changes in v$CLEAN_VERSION
           
           ### New Package Architecture
           - 📦 **DevelApp.StepLexer** - Advanced UTF-8 tokenization with multi-path support
@@ -230,4 +307,36 @@ jobs:
           - Integrated AST functionality with DevelApp.CognitiveGraph
           
           See the [CHANGELOG](CHANGELOG.md) for detailed changes." \
-          --target main
+            --target main
+        else
+          echo "Subsequent release detected - using standard release process"
+          git tag v${{ needs.calculate-version.outputs.version }}
+          git push origin v${{ needs.calculate-version.outputs.version }}
+          
+          # Create the GitHub release
+          gh release create v${{ needs.calculate-version.outputs.version }} \
+            --title "Release v${{ needs.calculate-version.outputs.version }}" \
+            --notes "## Changes in v${{ needs.calculate-version.outputs.version }}
+          
+          ### New Package Architecture
+          - 📦 **DevelApp.StepLexer** - Advanced UTF-8 tokenization with multi-path support
+          - 📦 **DevelApp.StepParser** - GLR-style multi-path parsing with CognitiveGraph integration
+          
+          ### GrammarForge Step-Parser Features
+          - ✨ StepLexer with unified regex pattern parsing and source tokenization
+          - ⚡ StepParser with GLR-style incremental parsing for ambiguity resolution
+          - 🔗 CognitiveGraph integration for advanced semantic analysis  
+          - 🎯 Context-sensitive grammar support with hierarchical scopes
+          - 🔧 Location-based refactoring operations (extract, inline, rename)
+          - 📝 Grammar inheritance with ANTLR/Bison/Yacc base grammar support
+          - 💾 Zero-copy UTF-8 processing with ReadOnlyMemory support
+          - 🔀 Multi-path tokenization for handling ambiguous input
+          
+          ### Breaking Changes
+          - Replaced single ENFAStepLexer.StepParser package with split architecture
+          - Updated namespace from ENFA_Parser.Core to DevelApp.StepLexer/DevelApp.StepParser
+          - Integrated AST functionality with DevelApp.CognitiveGraph
+          
+          See the [CHANGELOG](CHANGELOG.md) for detailed changes." \
+            --target main
+        fi
