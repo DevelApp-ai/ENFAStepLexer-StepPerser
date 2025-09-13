@@ -17,7 +17,7 @@ jobs:
     outputs:
       version: ${{ steps.gitversion.outputs.SemVer }}
       nugetVersion: ${{ steps.gitversion.outputs.NuGetVersionV2 }}
-      isPrerelease: ${{ steps.gitversion.outputs.CommitsSinceVersionSource != '0' || steps.gitversion.outputs.PreReleaseTag != '' }}
+      isPrerelease: ${{ steps.gitversion.outputs.PreReleaseTag != '' }}
     steps:
     - uses: actions/checkout@v4
       with:
@@ -186,12 +186,26 @@ jobs:
             --api-key ${{ secrets.NUGET_API_KEY }} \
             --skip-duplicate || echo "Package already exists, skipping..."
         done
-        
+
+  create-github-release:
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    runs-on: ubuntu-latest
+    needs: [calculate-version, build-and-test, security-scan]
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+      
     - name: Create GitHub Release
       if: needs.calculate-version.outputs.isPrerelease == 'false'
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       run: |
+        # Create and push the git tag first
+        git tag v${{ needs.calculate-version.outputs.version }}
+        git push origin v${{ needs.calculate-version.outputs.version }}
+        
+        # Create the GitHub release
         gh release create v${{ needs.calculate-version.outputs.version }} \
           --title "Release v${{ needs.calculate-version.outputs.version }}" \
           --notes "## Changes in v${{ needs.calculate-version.outputs.version }}
