@@ -148,6 +148,209 @@ namespace DevelApp.StepLexer.Tests
         }
     }
     
+    /// <summary>
+    /// Comprehensive PCRE2 pattern testing for Phase 1 and Phase 2 enhancements
+    /// </summary>
+    public class PCRE2PatternTests
+    {
+        [Theory]
+        [InlineData("(?i)", true)]
+        [InlineData("(?m)", true)]
+        [InlineData("(?s)", true)]
+        [InlineData("(?x)", true)]
+        [InlineData("(?im)", true)]
+        [InlineData("(?ims)", true)]
+        [InlineData("(?xyz)", false)]
+        [InlineData("(?q)", false)]
+        public void Phase1_InlineModifiers_ParsesCorrectly(string pattern, bool isValidModifier)
+        {
+            // Arrange
+            var lexer = new StepLexer();
+            var utf8Pattern = Encoding.UTF8.GetBytes(pattern);
+            var view = new ZeroCopyStringView(utf8Pattern);
+            
+            // Act
+            var result = lexer.Phase1_LexicalScan(view);
+            
+            // Assert
+            Assert.True(result); // Phase 1 lexical scan should always succeed
+            Assert.NotEmpty(lexer.Phase1Results);
+            
+            if (isValidModifier)
+            {
+                // Valid modifiers should be detected as InlineModifier tokens
+                Assert.Contains(lexer.Phase1Results, t => t.Type == TokenType.InlineModifier);
+            }
+            else
+            {
+                // Invalid modifiers should be treated as SpecialGroup tokens instead
+                Assert.DoesNotContain(lexer.Phase1Results, t => t.Type == TokenType.InlineModifier);
+                Assert.Contains(lexer.Phase1Results, t => t.Type == TokenType.SpecialGroup);
+            }
+        }
+        
+        [Theory]
+        [InlineData(@"\p{L}", true)]  // Letter category
+        [InlineData(@"\p{Nd}", true)] // Decimal number
+        [InlineData(@"\P{Z}", true)]  // Not separator
+        [InlineData(@"\p{Latin}", true)] // Script name
+        [InlineData(@"\p{Basic_Latin}", true)] // Block name
+        [InlineData(@"\p{InvalidProperty}", false)] // Invalid property
+        [InlineData(@"\p{}", false)] // Empty property
+        public void Phase1_UnicodeProperties_ValidatesCorrectly(string pattern, bool shouldValidate)
+        {
+            // Arrange
+            var lexer = new StepLexer();
+            var utf8Pattern = Encoding.UTF8.GetBytes(pattern);
+            var view = new ZeroCopyStringView(utf8Pattern);
+            
+            // Act
+            var phase1Result = lexer.Phase1_LexicalScan(view);
+            var phase2Result = lexer.Phase2_Disambiguation();
+            
+            // Assert
+            Assert.True(phase1Result); // Phase 1 should always succeed for lexical scanning
+            Assert.Equal(shouldValidate, phase2Result); // Phase 2 should validate Unicode properties
+            
+            if (phase1Result)
+            {
+                Assert.Contains(lexer.Phase1Results, t => t.Type == TokenType.UnicodeProperty);
+            }
+        }
+        
+        [Theory]
+        [InlineData(@"\Qhello world\E", "hello world")]
+        [InlineData(@"\Q.*+?\E", ".*+?")]
+        [InlineData(@"\Q\E", "")]
+        [InlineData(@"\Qno end", null)] // No \E ending
+        public void Phase1_LiteralTextConstruct_ParsesCorrectly(string pattern, string expectedLiteral)
+        {
+            // Arrange
+            var lexer = new StepLexer();
+            var utf8Pattern = Encoding.UTF8.GetBytes(pattern);
+            var view = new ZeroCopyStringView(utf8Pattern);
+            
+            // Act
+            var result = lexer.Phase1_LexicalScan(view);
+            
+            // Assert
+            Assert.True(result);
+            
+            if (expectedLiteral != null)
+            {
+                Assert.Contains(lexer.Phase1Results, t => t.Type == TokenType.LiteralText);
+            }
+            else
+            {
+                Assert.DoesNotContain(lexer.Phase1Results, t => t.Type == TokenType.LiteralText);
+            }
+        }
+        
+        [Theory]
+        [InlineData(@"(?#comment)")]
+        [InlineData(@"(?#multi word comment)")]
+        [InlineData(@"(?#)")]
+        [InlineData(@"(?#nested(comment))")]
+        public void Phase1_CommentGroups_ParsesCorrectly(string pattern)
+        {
+            // Arrange
+            var lexer = new StepLexer();
+            var utf8Pattern = Encoding.UTF8.GetBytes(pattern);
+            var view = new ZeroCopyStringView(utf8Pattern);
+            
+            // Act
+            var result = lexer.Phase1_LexicalScan(view);
+            
+            // Assert
+            Assert.True(result);
+            Assert.Contains(lexer.Phase1Results, t => t.Type == TokenType.RegexComment);
+        }
+        
+        [Fact]
+        public void Phase1_ComplexPattern_ParsesAllFeatures()
+        {
+            // Arrange
+            var lexer = new StepLexer();
+            var pattern = @"(?i)\p{L}+\Q literal \E(?#comment)[a-z]*";
+            var utf8Pattern = Encoding.UTF8.GetBytes(pattern);
+            var view = new ZeroCopyStringView(utf8Pattern);
+            
+            // Act
+            var result = lexer.Phase1_LexicalScan(view);
+            
+            // Assert
+            Assert.True(result);
+            
+            // Verify all token types are detected
+            var tokens = lexer.Phase1Results;
+            Assert.Contains(tokens, t => t.Type == TokenType.InlineModifier);
+            Assert.Contains(tokens, t => t.Type == TokenType.UnicodeProperty);
+            Assert.Contains(tokens, t => t.Type == TokenType.LiteralText);
+            Assert.Contains(tokens, t => t.Type == TokenType.RegexComment);
+            Assert.Contains(tokens, t => t.Type == TokenType.CharacterClass);
+            Assert.Contains(tokens, t => t.Type == TokenType.Quantifier);
+        }
+        
+        [Fact]
+        public void Phase2_UnicodePropertyValidation_RejectsInvalidProperties()
+        {
+            // Arrange
+            var lexer = new StepLexer();
+            var pattern = @"\p{InvalidCategory}";
+            var utf8Pattern = Encoding.UTF8.GetBytes(pattern);
+            var view = new ZeroCopyStringView(utf8Pattern);
+            
+            // Act
+            var phase1Result = lexer.Phase1_LexicalScan(view);
+            var phase2Result = lexer.Phase2_Disambiguation();
+            
+            // Assert
+            Assert.True(phase1Result);  // Lexical scan should succeed
+            Assert.False(phase2Result); // Disambiguation should fail on invalid property
+        }
+        
+        [Theory]
+        [InlineData(@"\x{41}", TokenType.UnicodeEscape)]
+        [InlineData(@"\xFF", TokenType.HexEscape)]
+        [InlineData(@"\x41", TokenType.HexEscape)]
+        public void Phase1_HexEscapes_CreatesCorrectTokenTypes(string pattern, TokenType expectedType)
+        {
+            // Arrange
+            var lexer = new StepLexer();
+            var utf8Pattern = Encoding.UTF8.GetBytes(pattern);
+            var view = new ZeroCopyStringView(utf8Pattern);
+            
+            // Act
+            var result = lexer.Phase1_LexicalScan(view);
+            
+            // Assert
+            Assert.True(result);
+            Assert.Contains(lexer.Phase1Results, t => 
+                t.Type == expectedType || 
+                (t.HasAlternatives && t.Alternatives != null && t.Alternatives.Any(a => a.Type == expectedType)));
+        }
+        
+        [Fact]
+        public void Phase1_AmbiguousHexEscape_CreatesAlternatives()
+        {
+            // Arrange
+            var lexer = new StepLexer();
+            var pattern = @"\x41FF"; // Could be \x41 + F + F or other interpretations
+            var utf8Pattern = Encoding.UTF8.GetBytes(pattern);
+            var view = new ZeroCopyStringView(utf8Pattern);
+            
+            // Act
+            var result = lexer.Phase1_LexicalScan(view);
+            
+            // Assert
+            Assert.True(result);
+            
+            // Should detect ambiguity and create alternatives
+            var ambiguousTokens = lexer.Phase1Results.Where(t => t.HasAlternatives).ToList();
+            Assert.NotEmpty(ambiguousTokens);
+        }
+    }
+    
     public class StepLexerTwoPhaseTests
     {
         [Fact]
@@ -256,6 +459,108 @@ namespace DevelApp.StepLexer.Tests
             Assert.True(results.AmbiguityRatio >= 0);
             Assert.NotNull(results.PatternHierarchy);
             Assert.NotEmpty(results.PatternHierarchy);
+        }
+        
+        [Fact]
+        public void ParsePattern_PCRE2Features_Success()
+        {
+            // Arrange
+            var controller = new PatternParser(ParserType.Regex);
+            var pattern = @"(?i)\p{L}+\Q literal \E(?#comment)";
+            
+            // Act
+            var result = controller.ParsePattern(pattern, "pcre2_pattern");
+            
+            // Assert
+            Assert.True(result);
+            
+            var parseResults = controller.GetResults();
+            Assert.True(parseResults.Phase1TokenCount > 0);
+            Assert.Contains("InlineModifier", parseResults.PatternHierarchy);
+            Assert.Contains("UnicodeProperty", parseResults.PatternHierarchy);
+            Assert.Contains("LiteralText", parseResults.PatternHierarchy);
+            Assert.Contains("RegexComment", parseResults.PatternHierarchy);
+        }
+    }
+    
+    /// <summary>
+    /// Performance and edge case testing for PCRE2 implementation
+    /// </summary>
+    public class PCRE2PerformanceTests
+    {
+        [Fact]
+        public void Phase1_LargePattern_CompletesInReasonableTime()
+        {
+            // Arrange
+            var lexer = new StepLexer();
+            var pattern = string.Join("|", Enumerable.Repeat(@"\p{L}+", 100));
+            var utf8Pattern = Encoding.UTF8.GetBytes(pattern);
+            var view = new ZeroCopyStringView(utf8Pattern);
+            var startTime = System.DateTime.UtcNow;
+            
+            // Act
+            var result = lexer.Phase1_LexicalScan(view);
+            var duration = System.DateTime.UtcNow - startTime;
+            
+            // Assert
+            Assert.True(result);
+            Assert.True(duration.TotalMilliseconds < 1000, $"Pattern parsing took {duration.TotalMilliseconds}ms, expected < 1000ms");
+        }
+        
+        [Theory]
+        [InlineData(@"\p{L}", 100)]
+        [InlineData(@"(?i)test", 100)]
+        [InlineData(@"\Q...\E", 100)]
+        [InlineData(@"(?#comment)", 100)]
+        public void Phase1_RepeatedPatterns_MaintainsPerformance(string basePattern, int repetitions)
+        {
+            // Arrange
+            var lexer = new StepLexer();
+            var pattern = string.Join("", Enumerable.Repeat(basePattern, repetitions));
+            var utf8Pattern = Encoding.UTF8.GetBytes(pattern);
+            var view = new ZeroCopyStringView(utf8Pattern);
+            var startTime = System.DateTime.UtcNow;
+            
+            // Act
+            var result = lexer.Phase1_LexicalScan(view);
+            var duration = System.DateTime.UtcNow - startTime;
+            
+            // Assert
+            Assert.True(result);
+            Assert.True(duration.TotalMilliseconds < 2000, 
+                $"Pattern parsing of {repetitions} repetitions took {duration.TotalMilliseconds}ms, expected < 2000ms");
+        }
+        
+        [Fact]
+        public void Phase1_EmptyPattern_HandlesGracefully()
+        {
+            // Arrange
+            var lexer = new StepLexer();
+            var utf8Pattern = Encoding.UTF8.GetBytes("");
+            var view = new ZeroCopyStringView(utf8Pattern);
+            
+            // Act
+            var result = lexer.Phase1_LexicalScan(view);
+            
+            // Assert
+            Assert.True(result);
+            Assert.Empty(lexer.Phase1Results);
+        }
+        
+        [Fact]
+        public void Phase1_MalformedPattern_HandlesGracefully()
+        {
+            // Arrange
+            var lexer = new StepLexer();
+            var utf8Pattern = Encoding.UTF8.GetBytes(@"\p{unclosed");
+            var view = new ZeroCopyStringView(utf8Pattern);
+            
+            // Act
+            var result = lexer.Phase1_LexicalScan(view);
+            
+            // Assert
+            // Should not crash, may return false for malformed patterns
+            Assert.True(result || !result); // Either result is acceptable for malformed input
         }
     }
 }

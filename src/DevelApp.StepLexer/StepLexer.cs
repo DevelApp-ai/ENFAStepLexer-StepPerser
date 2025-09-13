@@ -171,6 +171,21 @@ namespace DevelApp.StepLexer
         /// </summary>
         UnicodeProperty,
         
+        /// <summary>
+        /// Inline modifier token (e.g., (?i), (?m), (?s))
+        /// </summary>
+        InlineModifier,
+        
+        /// <summary>
+        /// Literal text token in \Q...\E construct
+        /// </summary>
+        LiteralText,
+        
+        /// <summary>
+        /// Comment token in (?#...) construct
+        /// </summary>
+        RegexComment,
+        
         // Source code tokens
         /// <summary>
         /// Identifier token in source code
@@ -889,6 +904,13 @@ namespace DevelApp.StepLexer
                 return null;
                 
             byte nextByte = input[position + 1];
+            
+            // Check for \Q...\E literal text construct
+            if (nextByte == (byte)'Q')
+            {
+                return ScanLiteralTextConstruct(input, position);
+            }
+            
             var token = new SplittableToken(input.Slice(position, 2), TokenType.EscapeSequence, position);
             
             // Check for potential ambiguity in escape sequences
@@ -939,11 +961,42 @@ namespace DevelApp.StepLexer
         
         private (SplittableToken token, int nextPosition)? ScanGroup(ZeroCopyStringView input, int position)
         {
-            // Check for special group types like (?:...) or (?=...)
+            // Check for special group types like (?:...) or (?=...) or inline modifiers (?i), (?m), or comments (?#...)
             if (position + 1 < input.Length && input[position + 1] == (byte)'?')
             {
-                var token = new SplittableToken(input.Slice(position, 2), TokenType.SpecialGroup, position);
-                return (token, position + 2);
+                // Check for comment group (?#...)
+                if (position + 2 < input.Length && input[position + 2] == (byte)'#')
+                {
+                    return ScanCommentGroup(input, position);
+                }
+                
+                // Scan for inline modifiers and special groups
+                int end = position + 2;
+                while (end < input.Length && input[end] != (byte)')')
+                {
+                    end++;
+                }
+                
+                if (end < input.Length) // Found closing )
+                {
+                    end++; // Include the closing )
+                    var groupText = input.Slice(position, end - position);
+                    
+                    // Check if this is an inline modifier
+                    if (IsInlineModifier(groupText))
+                    {
+                        var token = new SplittableToken(groupText, TokenType.InlineModifier, position);
+                        return (token, end);
+                    }
+                    
+                    // Regular special group
+                    var specialToken = new SplittableToken(groupText, TokenType.SpecialGroup, position);
+                    return (specialToken, end);
+                }
+                
+                // Fallback for incomplete special group
+                var fallbackToken = new SplittableToken(input.Slice(position, 2), TokenType.SpecialGroup, position);
+                return (fallbackToken, position + 2);
             }
             
             var groupToken = new SplittableToken(input.Slice(position, 1), TokenType.GroupStart, position);
@@ -1007,6 +1060,24 @@ namespace DevelApp.StepLexer
         
         private bool ProcessRegexToken(SplittableToken token)
         {
+            // Validate token based on type
+            if (token.Type == TokenType.UnicodeProperty)
+            {
+                if (!ValidateUnicodeProperty(token.Text))
+                {
+                    // Invalid Unicode property - add error state
+                    var errorState = new ParsedState
+                    {
+                        TokenType = TokenType.UnicodeProperty,
+                        Text = token.Text.ToString(),
+                        Position = token.Position,
+                        IsAmbiguous = false
+                    };
+                    _phase2States.Add(errorState);
+                    return false; // Indicate validation failure
+                }
+            }
+            
             // Convert processed token to parsed state for regex patterns
             var state = new ParsedState
             {
@@ -1029,6 +1100,168 @@ namespace DevelApp.StepLexer
         /// Access to Phase 2 regex parsing results
         /// </summary>
         public IReadOnlyList<ParsedState> Phase2Results => _phase2States;
+        
+        /// <summary>
+        /// Check if a group text represents an inline modifier
+        /// </summary>
+        private bool IsInlineModifier(ZeroCopyStringView groupText)
+        {
+            if (groupText.Length < 4) return false; // Minimum (?i)
+            
+            var text = groupText.ToString();
+            
+            // Common inline modifiers: (?i), (?m), (?s), (?x), (?im), etc.
+            if (text.StartsWith("(?") && text.EndsWith(")"))
+            {
+                var modifiers = text.Substring(2, text.Length - 3);
+                
+                // Empty modifiers are not valid
+                if (string.IsNullOrEmpty(modifiers))
+                    return false;
+                    
+                return IsValidModifierString(modifiers);
+            }
+            
+            return false;
+        }
+        
+        /// <summary>
+        /// Validate if a string contains valid PCRE2 modifiers
+        /// </summary>
+        private bool IsValidModifierString(string modifiers)
+        {
+            foreach (char c in modifiers)
+            {
+                switch (c)
+                {
+                    case 'i': // Case insensitive
+                    case 'm': // Multiline mode
+                    case 's': // Single line mode (dotall)
+                    case 'x': // Extended syntax (ignore whitespace)
+                    case 'u': // Unicode mode
+                    case 'U': // Ungreedy quantifiers
+                    case 'A': // Anchored
+                    case 'D': // Dollar matches newline at end
+                    case 'S': // Study the regex
+                    case 'J': // Allow duplicate named groups
+                        continue;
+                    default:
+                        return false;
+                }
+            }
+            return modifiers.Length > 0;
+        }
+        
+        /// <summary>
+        /// Scan \Q...\E literal text construct
+        /// </summary>
+        private (SplittableToken token, int nextPosition)? ScanLiteralTextConstruct(ZeroCopyStringView input, int position)
+        {
+            // Look for \Q at current position
+            if (position + 1 >= input.Length || input[position + 1] != (byte)'Q')
+                return null;
+                
+            // Scan for \E ending
+            int end = position + 2;
+            while (end + 1 < input.Length)
+            {
+                if (input[end] == (byte)'\\' && input[end + 1] == (byte)'E')
+                {
+                    end += 2; // Include \E
+                    var token = new SplittableToken(input.Slice(position, end - position), TokenType.LiteralText, position);
+                    return (token, end);
+                }
+                end++;
+            }
+            
+            // No \E found - treat as regular escape sequence
+            var fallbackToken = new SplittableToken(input.Slice(position, 2), TokenType.EscapeSequence, position);
+            return (fallbackToken, position + 2);
+        }
+        
+        /// <summary>
+        /// Enhanced Unicode property validation with comprehensive property support
+        /// </summary>
+        private bool ValidateUnicodeProperty(ZeroCopyStringView propertyText)
+        {
+            var text = propertyText.ToString();
+            
+            // Remove \p{ or \P{ prefix and } suffix
+            if (text.Length < 4) return false;
+            if (!text.StartsWith("\\p{") && !text.StartsWith("\\P{")) return false;
+            if (!text.EndsWith("}")) return false;
+            
+            var propertyName = text.Substring(3, text.Length - 4);
+            
+            // Validate against known Unicode property names
+            return IsValidUnicodePropertyName(propertyName);
+        }
+        
+        /// <summary>
+        /// Check if a property name is a valid Unicode property
+        /// </summary>
+        private bool IsValidUnicodePropertyName(string propertyName)
+        {
+            // General categories
+            string[] generalCategories = {
+                "L", "LC", "Ll", "Lm", "Lo", "Lt", "Lu",  // Letters
+                "M", "Mc", "Me", "Mn",                     // Marks
+                "N", "Nd", "Nl", "No",                     // Numbers
+                "P", "Pc", "Pd", "Pe", "Pf", "Pi", "Po", "Ps", // Punctuation
+                "S", "Sc", "Sk", "Sm", "So",               // Symbols
+                "Z", "Zl", "Zp", "Zs",                     // Separators
+                "C", "Cc", "Cf", "Cn", "Co", "Cs"         // Other
+            };
+            
+            // Script names (common ones)
+            string[] scriptNames = {
+                "Arabic", "Armenian", "Bengali", "Bopomofo", "Braille", "Buhid", "CanadianAboriginal",
+                "Cherokee", "Common", "Coptic", "Cypriot", "Cyrillic", "Deseret", "Devanagari",
+                "Ethiopic", "Georgian", "Gothic", "Greek", "Gujarati", "Gurmukhi", "Han", "Hangul",
+                "Hanunoo", "Hebrew", "Hiragana", "Inherited", "Kannada", "Katakana", "Khmer", "Lao",
+                "Latin", "Limbu", "Linear_B", "Malayalam", "Mongolian", "Myanmar", "Ogham", "Old_Italic",
+                "Oriya", "Osmanya", "Runic", "Shavian", "Sinhala", "Syriac", "Tagalog", "Tagbanwa",
+                "TaiLe", "Tamil", "Telugu", "Thaana", "Thai", "Tibetan", "Ugaritic", "Yi"
+            };
+            
+            // Block names (common ones)
+            string[] blockNames = {
+                "Basic_Latin", "Latin-1_Supplement", "Latin_Extended-A", "Latin_Extended-B",
+                "IPA_Extensions", "Spacing_Modifier_Letters", "Combining_Diacritical_Marks",
+                "Greek_and_Coptic", "Cyrillic", "Cyrillic_Supplement", "Armenian", "Hebrew",
+                "Arabic", "Syriac", "Arabic_Supplement", "Thaana", "NKo", "Samaritan", "Mandaic",
+                "Devanagari", "Bengali", "Gurmukhi", "Gujarati", "Oriya", "Tamil", "Telugu",
+                "Kannada", "Malayalam", "Sinhala", "Thai", "Lao", "Tibetan", "Myanmar", "Georgian",
+                "Hangul_Jamo", "Ethiopic", "Ethiopic_Supplement", "Cherokee", "Unified_Canadian_Aboriginal_Syllabics"
+            };
+            
+            return generalCategories.Contains(propertyName) || 
+                   scriptNames.Contains(propertyName) || 
+                   blockNames.Contains(propertyName) ||
+                   propertyName == "Any" || propertyName == "Assigned";
+        }
+        
+        /// <summary>
+        /// Scan comment group (?#...)
+        /// </summary>
+        private (SplittableToken token, int nextPosition)? ScanCommentGroup(ZeroCopyStringView input, int position)
+        {
+            // Scan from (?# to closing )
+            int end = position + 3; // Skip (?#
+            int depth = 1;
+            
+            while (end < input.Length && depth > 0)
+            {
+                if (input[end] == (byte)'(')
+                    depth++;
+                else if (input[end] == (byte)')')
+                    depth--;
+                end++;
+            }
+            
+            var token = new SplittableToken(input.Slice(position, end - position), TokenType.RegexComment, position);
+            return (token, end);
+        }
     }
 
     /// <summary>
