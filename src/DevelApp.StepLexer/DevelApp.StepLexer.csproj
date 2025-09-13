@@ -1,0 +1,60 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <LangVersion>latest</LangVersion>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <GeneratePackageOnBuild>false</GeneratePackageOnBuild>
+    
+    <!-- Package Information -->
+    <PackageId>DevelApp.StepLexer</PackageId>
+    <Title>Step Lexer - Advanced UTF-8 Tokenization with Multi-Path Support</Title>
+    <Description>A modern lexer implementation with zero-copy UTF-8 processing, two-phase regex pattern parsing, and multi-path tokenization for handling ambiguous input. Part of the GrammarForge step-parser architecture.</Description>
+    <Authors>DevelApp</Authors>
+    <Company>DevelApp</Company>
+    <Product>DevelApp.StepLexer</Product>
+    <Copyright>Copyright (c) 2024 DevelApp</Copyright>
+    
+    <!-- Package Metadata -->
+    <PackageTags>lexer;tokenizer;utf8;zero-copy;parsing;regex;multi-path;grammar-forge</PackageTags>
+    <PackageProjectUrl>https://github.com/DevelApp/ENFAStepLexer-StepPerser</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/DevelApp/ENFAStepLexer-StepPerser</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageRequireLicenseAcceptance>false</PackageRequireLicenseAcceptance>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    
+    <!-- Release Notes -->
+    <PackageReleaseNotes>
+      v1.0.0: 
+      - NEW: StepLexer with unified regex pattern parsing and source tokenization
+      - NEW: Zero-copy UTF-8 processing with ReadOnlyMemory support
+      - NEW: Two-phase parsing architecture for regex complexity avoidance  
+      - NEW: Multi-path tokenization for ambiguity resolution
+      - NEW: Pattern splitting and single-pass disambiguation
+      - NEW: Advanced Unicode support with ICU integration (Phase 3 PCRE2)
+      - NEW: Comprehensive performance benchmarking framework
+      - NEW: Enhanced Unicode property validation with 150+ properties
+      - NEW: Unicode normalization support (NFC, NFD, NFKC, NFKD)
+      - NEW: Script and binary property matching
+      - ENHANCED: Location-based code targeting for surgical operations
+      - ENHANCED: Production-ready PCRE2 support with comprehensive test coverage
+    </PackageReleaseNotes>
+    
+    <!-- Documentation -->
+    <DocumentationFile>bin\$(Configuration)\$(TargetFramework)\$(AssemblyName).xml</DocumentationFile>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <WarningsAsErrors>CS1591</WarningsAsErrors>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <None Include="..\..\README.md" Pack="true" PackagePath="\" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="ICU4N" Version="60.1.0-alpha.438" />
+  </ItemGroup>
+
+</Project>

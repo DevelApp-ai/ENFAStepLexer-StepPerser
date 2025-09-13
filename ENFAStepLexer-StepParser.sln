@@ -1,0 +1,56 @@
+﻿Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.0.31903.59
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "ENFAStepLexer.Demo", "src\ENFAStepLexer.Demo\ENFAStepLexer.Demo.csproj", "{8B8C2C1E-1234-4567-8901-123456789ABD}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "src", "src", "{16CACD42-1248-4AF0-932E-3C32A0F21FFB}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DevelApp.StepLexer", "src\DevelApp.StepLexer\DevelApp.StepLexer.csproj", "{C74394FC-C10D-47F8-9604-8FF2A5315D77}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DevelApp.StepParser", "src\DevelApp.StepParser\DevelApp.StepParser.csproj", "{C7AAD239-327D-47D0-9DE1-D6F61263A023}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DevelApp.StepLexer.Tests", "src\DevelApp.StepLexer.Tests\DevelApp.StepLexer.Tests.csproj", "{AB63FAFF-5082-49D7-A4A7-9267721F8E37}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DevelApp.StepParser.Tests", "src\DevelApp.StepParser.Tests\DevelApp.StepParser.Tests.csproj", "{78C2C632-F30F-47BF-BA10-0D0087107748}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{8B8C2C1E-1234-4567-8901-123456789ABD}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{8B8C2C1E-1234-4567-8901-123456789ABD}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{8B8C2C1E-1234-4567-8901-123456789ABD}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{8B8C2C1E-1234-4567-8901-123456789ABD}.Release|Any CPU.Build.0 = Release|Any CPU
+		{C74394FC-C10D-47F8-9604-8FF2A5315D77}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{C74394FC-C10D-47F8-9604-8FF2A5315D77}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{C74394FC-C10D-47F8-9604-8FF2A5315D77}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{C74394FC-C10D-47F8-9604-8FF2A5315D77}.Release|Any CPU.Build.0 = Release|Any CPU
+		{C7AAD239-327D-47D0-9DE1-D6F61263A023}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{C7AAD239-327D-47D0-9DE1-D6F61263A023}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{C7AAD239-327D-47D0-9DE1-D6F61263A023}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{C7AAD239-327D-47D0-9DE1-D6F61263A023}.Release|Any CPU.Build.0 = Release|Any CPU
+		{AB63FAFF-5082-49D7-A4A7-9267721F8E37}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{AB63FAFF-5082-49D7-A4A7-9267721F8E37}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{AB63FAFF-5082-49D7-A4A7-9267721F8E37}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{AB63FAFF-5082-49D7-A4A7-9267721F8E37}.Release|Any CPU.Build.0 = Release|Any CPU
+		{78C2C632-F30F-47BF-BA10-0D0087107748}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{78C2C632-F30F-47BF-BA10-0D0087107748}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{78C2C632-F30F-47BF-BA10-0D0087107748}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{78C2C632-F30F-47BF-BA10-0D0087107748}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {9A19103F-1234-4668-BE54-9A1E7A4F7556}
+	EndGlobalSection
+	GlobalSection(NestedProjects) = preSolution
+		{C74394FC-C10D-47F8-9604-8FF2A5315D77} = {16CACD42-1248-4AF0-932E-3C32A0F21FFB}
+		{C7AAD239-327D-47D0-9DE1-D6F61263A023} = {16CACD42-1248-4AF0-932E-3C32A0F21FFB}
+		{AB63FAFF-5082-49D7-A4A7-9267721F8E37} = {16CACD42-1248-4AF0-932E-3C32A0F21FFB}
+		{78C2C632-F30F-47BF-BA10-0D0087107748} = {16CACD42-1248-4AF0-932E-3C32A0F21FFB}
+	EndGlobalSection
+EndGlobal

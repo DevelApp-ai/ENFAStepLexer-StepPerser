@@ -1,0 +1,127 @@
+# Sample GrammarForge Grammar File
+# Demonstrates Step-Parser with Context-Sensitive Projections and 
+# Projection Match Triggered Code for Semantic Rules
+
+Grammar: SampleLanguageGrammar
+Inherits: antlr4_base
+TokenSplitter: Space
+ImportSemantics: true
+
+# Token Definitions for Split-Lexer
+<FUNCTION (default-context)> ::= "function" => { switchContext("function"); }
+<CLASS (default-context)> ::= "class" => { switchContext("class"); }
+<IDENTIFIER> ::= /[a-zA-Z][a-zA-Z0-9]*/ => { recordIdentifier($1); }
+<NUMBER> ::= /[0-9]+/ => { recordNumber($1); }
+<STRING> ::= /"([^"\\]|\\.)*"/ => { recordString($1); }
+
+# Operators with precedence
+<ASSIGN> ::= "=" => { return("ASSIGN"); }
+<PLUS> ::= "+" => { return("PLUS"); }
+<MINUS> ::= "-" => { return("MINUS"); }
+<TIMES> ::= "*" => { return("TIMES"); }
+<DIVIDE> ::= "/" => { return("DIVIDE"); }
+
+# Delimiters
+<LBRACE> ::= "{" => { pushScope(); }
+<RBRACE> ::= "}" => { popScope(); }
+<LPAREN> ::= "(" => { return("LPAREN"); }
+<RPAREN> ::= ")" => { return("RPAREN"); }
+<SEMICOLON> ::= ";" => { return("SEMICOLON"); }
+
+# Whitespace (skipped)
+<WS> ::= /[ \t\r\n]+/ => { /* skip whitespace */ }
+
+# Production Rules with Context-Sensitive Projections
+
+<program> ::= <declaration>* => { buildProgramAST($1); }
+
+<declaration> ::= <class-declaration> | <function-declaration> | <variable-declaration>
+
+# Context-sensitive class declaration
+<class-declaration (default-context)> ::= <CLASS> <IDENTIFIER> <LBRACE> <class-body> <RBRACE> 
+    => { createClass($2, $4); switchContext("default"); }
+
+<class-body (class-context)> ::= <class-member>* => { buildClassBody($1); }
+
+# Context-sensitive function declaration  
+<function-declaration (default-context)> ::= <FUNCTION> <IDENTIFIER> <LPAREN> <parameters> <RPAREN> <LBRACE> <function-body> <RBRACE>
+    => { createFunction($2, $4, $7); switchContext("default"); }
+
+<function-body (function-context)> ::= <statement>* => { buildFunctionBody($1); }
+
+# Context-sensitive variable declarations
+<variable-declaration (class-context)> ::= <IDENTIFIER> <ASSIGN> <expression> <SEMICOLON>
+    => { declareField($1, $3); }
+
+<variable-declaration (function-context)> ::= <IDENTIFIER> <ASSIGN> <expression> <SEMICOLON>
+    => { declareLocalVariable($1, $3); }
+
+<variable-declaration (default-context)> ::= <IDENTIFIER> <ASSIGN> <expression> <SEMICOLON>
+    => { declareGlobalVariable($1, $3); }
+
+# Expression rules with precedence handling
+<expression> ::= <expression> <PLUS> <expression> => { createBinaryOp($1, "add", $3); }
+               | <expression> <MINUS> <expression> => { createBinaryOp($1, "subtract", $3); }
+               | <expression> <TIMES> <expression> => { createBinaryOp($1, "multiply", $3); }
+               | <expression> <DIVIDE> <expression> => { createBinaryOp($1, "divide", $3); }
+               | <LPAREN> <expression> <RPAREN> => { $2 }
+               | <IDENTIFIER> => { createIdentifierRef($1); }
+               | <NUMBER> => { createNumberLiteral($1); }
+               | <STRING> => { createStringLiteral($1); }
+
+<parameters> ::= <parameter-list> | ε => { createParameterList($1); }
+<parameter-list> ::= <parameter> ("," <parameter>)* => { buildParameterList($1, $2); }
+<parameter> ::= <IDENTIFIER> => { createParameter($1); }
+
+<statement> ::= <expression> <SEMICOLON> => { createExpressionStatement($1); }
+              | <variable-declaration> => { $1 }
+
+# Context-Sensitive Projections with Projection Match Triggered Code
+
+# Projection for detecting function call patterns
+@context(function-context) @projection(IDENTIFIER LPAREN) function_call_pattern => {
+    // Triggered when identifier followed by opening parenthesis is matched in function context
+    validateFunctionCall(currentMatch);
+    addFunctionCallCandidate(currentMatch);
+}
+
+# Projection for detecting field access patterns
+@context(class-context) @projection(IDENTIFIER DOT IDENTIFIER) field_access_pattern => {
+    // Triggered when field access pattern is matched in class context
+    validateFieldAccess(currentMatch);
+    recordFieldUsage(currentMatch);
+}
+
+# Projection for detecting assignment patterns in different contexts
+@context(function-context) @projection(IDENTIFIER ASSIGN) local_assignment_pattern => {
+    // Triggered for assignments in function context - treat as local variables
+    declareOrAssignLocal(currentMatch);
+}
+
+@context(class-context) @projection(IDENTIFIER ASSIGN) field_assignment_pattern => {
+    // Triggered for assignments in class context - treat as field assignments
+    declareOrAssignField(currentMatch);
+}
+
+# Precedence Rules (higher level = higher precedence)
+Precedence: {
+  inherit: antlr4_base
+  Level1: { operators: ["+", "-"], associativity: "left" }
+  Level2: { operators: ["*", "/"], associativity: "left" }
+  Level3: { operators: ["="], associativity: "right" }
+}
+
+# Error Recovery Rules
+ErrorRecovery: {
+  strategy: "automatic"
+  synchronization: ["semicolon", "brace", "keyword"]
+  reportingLevel: "detailed"
+}
+
+# Grammar Metadata
+Metadata: {
+  version: "1.0"
+  author: "GrammarForge Step-Parser"
+  description: "Sample grammar demonstrating context-sensitive projections and semantic rules"
+  targetLanguage: "SampleLanguage"
+}

@@ -1,0 +1,219 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+    types: [opened, synchronize, reopened, ready_for_review]
+
+env:
+  DOTNET_VERSION: '8.0.x'
+  NUGET_PACKAGES: ${{ github.workspace }}/.nuget/packages
+
+jobs:
+  calculate-version:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.gitversion.outputs.SemVer }}
+      nugetVersion: ${{ steps.gitversion.outputs.NuGetVersionV2 }}
+      isPrerelease: ${{ steps.gitversion.outputs.CommitsSinceVersionSource != '0' || steps.gitversion.outputs.PreReleaseTag != '' }}
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+        
+    - name: Install GitVersion
+      uses: gittools/actions/gitversion/setup@v0.10.2
+      with:
+        versionSpec: '5.x'
+        
+    - name: Determine Version
+      id: gitversion
+      uses: gittools/actions/gitversion/execute@v0.10.2
+      with:
+        useConfigFile: true
+        configFilePath: GitVersion.yml
+
+  build-and-test:
+    runs-on: ubuntu-latest
+    needs: calculate-version
+    strategy:
+      matrix:
+        configuration: [Debug, Release]
+    
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+        
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: ${{ env.DOTNET_VERSION }}
+        
+    - name: Cache NuGet packages
+      uses: actions/cache@v4
+      with:
+        path: ${{ env.NUGET_PACKAGES }}
+        key: ${{ runner.os }}-nuget-${{ hashFiles('**/*.csproj') }}
+        restore-keys: |
+          ${{ runner.os }}-nuget-
+          
+    - name: Restore dependencies
+      run: dotnet restore
+      
+    - name: Build
+      run: dotnet build --configuration ${{ matrix.configuration }} --no-restore -p:Version=${{ needs.calculate-version.outputs.version }}
+      
+    - name: Test
+      run: dotnet test --configuration ${{ matrix.configuration }} --no-build --verbosity normal --collect:"XPlat Code Coverage" --logger trx --results-directory ./TestResults
+      
+    - name: Upload test results
+      uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: test-results-${{ matrix.configuration }}
+        path: ./TestResults
+        
+    - name: Pack NuGet packages
+      if: matrix.configuration == 'Release'
+      run: |
+        # Pack DevelApp.StepLexer
+        dotnet pack src/DevelApp.StepLexer/DevelApp.StepLexer.csproj \
+          --configuration Release \
+          --no-build \
+          --output ./nupkg \
+          -p:PackageVersion=${{ needs.calculate-version.outputs.nugetVersion }} \
+          -p:Version=${{ needs.calculate-version.outputs.version }}
+        
+        # Pack DevelApp.StepParser
+        dotnet pack src/DevelApp.StepParser/DevelApp.StepParser.csproj \
+          --configuration Release \
+          --no-build \
+          --output ./nupkg \
+          -p:PackageVersion=${{ needs.calculate-version.outputs.nugetVersion }} \
+          -p:Version=${{ needs.calculate-version.outputs.version }}
+          
+    - name: Upload NuGet packages
+      if: matrix.configuration == 'Release'
+      uses: actions/upload-artifact@v4
+      with:
+        name: nuget-packages
+        path: ./nupkg/*.nupkg
+
+  security-scan:
+    runs-on: ubuntu-latest
+    needs: build-and-test
+    steps:
+    - uses: actions/checkout@v4
+      
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: ${{ env.DOTNET_VERSION }}
+        
+    - name: Restore dependencies
+      run: dotnet restore
+      
+    - name: Security scan
+      run: |
+        dotnet list package --vulnerable --include-transitive || true
+        dotnet list package --deprecated || true
+
+  publish-github-packages:
+    if: github.event_name == 'push' || github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    needs: [calculate-version, build-and-test, security-scan]
+    steps:
+    - uses: actions/checkout@v4
+      
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: ${{ env.DOTNET_VERSION }}
+        
+    - name: Download NuGet packages
+      uses: actions/download-artifact@v4
+      with:
+        name: nuget-packages
+        path: ./nupkg
+        
+    - name: Set up NuGet authentication
+      run: |
+        dotnet nuget add source \
+          --username ${{ github.actor }} \
+          --password ${{ secrets.GITHUB_TOKEN }} \
+          --store-password-in-clear-text \
+          --name github "https://nuget.pkg.github.com/${{ github.repository_owner }}/index.json"
+          
+    - name: Publish to GitHub Packages
+      run: |
+        for package in ./nupkg/*.nupkg; do
+          echo "Publishing $package to GitHub Packages..."
+          dotnet nuget push "$package" \
+            --source github \
+            --api-key ${{ secrets.GITHUB_TOKEN }} \
+            --skip-duplicate || echo "Package already exists, skipping..."
+        done
+
+  publish-nuget-org:
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    runs-on: ubuntu-latest
+    needs: [calculate-version, build-and-test, security-scan]
+    environment: production
+    steps:
+    - uses: actions/checkout@v4
+      
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: ${{ env.DOTNET_VERSION }}
+        
+    - name: Download NuGet packages
+      uses: actions/download-artifact@v4
+      with:
+        name: nuget-packages
+        path: ./nupkg
+        
+    - name: Publish to NuGet.org
+      if: needs.calculate-version.outputs.isPrerelease == 'false'
+      run: |
+        for package in ./nupkg/*.nupkg; do
+          echo "Publishing $package to NuGet.org..."
+          dotnet nuget push "$package" \
+            --source https://api.nuget.org/v3/index.json \
+            --api-key ${{ secrets.NUGET_API_KEY }} \
+            --skip-duplicate || echo "Package already exists, skipping..."
+        done
+        
+    - name: Create GitHub Release
+      if: needs.calculate-version.outputs.isPrerelease == 'false'
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      run: |
+        gh release create v${{ needs.calculate-version.outputs.version }} \
+          --title "Release v${{ needs.calculate-version.outputs.version }}" \
+          --notes "## Changes in v${{ needs.calculate-version.outputs.version }}
+          
+          ### New Package Architecture
+          - 📦 **DevelApp.StepLexer** - Advanced UTF-8 tokenization with multi-path support
+          - 📦 **DevelApp.StepParser** - GLR-style multi-path parsing with CognitiveGraph integration
+          
+          ### GrammarForge Step-Parser Features
+          - ✨ StepLexer with unified regex pattern parsing and source tokenization
+          - ⚡ StepParser with GLR-style incremental parsing for ambiguity resolution
+          - 🔗 CognitiveGraph integration for advanced semantic analysis  
+          - 🎯 Context-sensitive grammar support with hierarchical scopes
+          - 🔧 Location-based refactoring operations (extract, inline, rename)
+          - 📝 Grammar inheritance with ANTLR/Bison/Yacc base grammar support
+          - 💾 Zero-copy UTF-8 processing with ReadOnlyMemory support
+          - 🔀 Multi-path tokenization for handling ambiguous input
+          
+          ### Breaking Changes
+          - Replaced single ENFAStepLexer.StepParser package with split architecture
+          - Updated namespace from ENFA_Parser.Core to DevelApp.StepLexer/DevelApp.StepParser
+          - Integrated AST functionality with DevelApp.CognitiveGraph
+          
+          See the [CHANGELOG](CHANGELOG.md) for detailed changes." \
+          --target main
