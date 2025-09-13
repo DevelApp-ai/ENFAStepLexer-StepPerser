@@ -9,7 +9,8 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <ProjectReference Include="../ENFA_Parser/ENFA_Parser.csproj" />
+    <ProjectReference Include="../DevelApp.StepLexer/DevelApp.StepLexer.csproj" />
+    <ProjectReference Include="../DevelApp.StepParser/DevelApp.StepParser.csproj" />
   </ItemGroup>
 
 </Project>

@@ -1,7 +1,8 @@
 using System;
 using System.Linq;
 using System.Text;
-using ENFA_Parser.Core;
+using DevelApp.StepLexer;
+using DevelApp.StepParser;
 
 namespace ENFAStepLexer.Demo
 {
