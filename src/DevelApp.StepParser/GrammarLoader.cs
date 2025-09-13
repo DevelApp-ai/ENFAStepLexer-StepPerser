@@ -187,8 +187,17 @@ namespace DevelApp.StepParser
         /// </summary>
         private bool IsTokenRule(string line)
         {
-            // Token rules start with < and contain > followed by ::= (with possible spaces)
-            return line.StartsWith("<") && line.Contains(">") && line.Contains("::=") && !line.Contains("(");
+            // Token rules start with < and contain > followed by ::= 
+            // and have patterns like /regex/, 'literal', or "string" on the right side
+            if (!line.StartsWith("<") || !line.Contains("::=")) return false;
+            
+            var colonIndex = line.IndexOf("::=");
+            if (colonIndex == -1) return false;
+            
+            var rightSide = line.Substring(colonIndex + 3).Trim();
+            
+            // Token rules have patterns, not references to other rules
+            return rightSide.StartsWith("/") || rightSide.StartsWith("'") || rightSide.StartsWith("\"");
         }
 
         /// <summary>
@@ -199,7 +208,8 @@ namespace DevelApp.StepParser
             try
             {
                 // Pattern: <TOKEN_NAME> ::= pattern => { action }
-                var match = Regex.Match(line, @"<([^>]+)>\s*::=\s*([^=]+?)(?:\s*=>\s*\{([^}]*)\})?");
+                // Fixed regex to properly capture the full pattern
+                var match = Regex.Match(line, @"<([^>]+)>\s*::=\s*(.+?)(?:\s*=>\s*\{([^}]*)\})?$");
                 if (!match.Success) return null;
 
                 var name = match.Groups[1].Value.Trim();
@@ -254,9 +264,8 @@ namespace DevelApp.StepParser
         /// </summary>
         private bool IsProductionRule(string line)
         {
-            // Production rules contain < > and ::= but may have context modifiers
-            return line.StartsWith("<") && line.Contains(">::=") && 
-                   (line.Contains("(") || !IsTokenRule(line));
+            // Production rules start with < and contain ::= but are not token rules
+            return line.StartsWith("<") && line.Contains("::=") && !IsTokenRule(line);
         }
 
         /// <summary>
