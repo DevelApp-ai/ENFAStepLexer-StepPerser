@@ -1,6 +1,6 @@
 # ENFAStepLexer-StepParser
 
-A modern, extensible ENFA (Extended Non-deterministic Finite Automaton) based regex parser with enhanced PCRE2 support, built upon the foundation of @DevelApp-ai/enfaparser.
+A modern, extensible ENFA (Extended Non-deterministic Finite Automaton) based regex parser with enhanced PCRE2 support, built upon the foundation of @DevelApp/enfaparser.
 
 ## Overview
 
@@ -34,7 +34,7 @@ ENFAStepLexer-StepParser is a complete rewrite and enhancement of the original E
 
 ```bash
 # Clone the repository
-git clone https://github.com/DevelApp-ai/ENFAStepLexer-StepPerser.git
+git clone https://github.com/DevelApp/ENFAStepLexer-StepPerser.git
 cd ENFAStepLexer-StepPerser
 
 # Build the core library
@@ -167,10 +167,10 @@ The ENFA-based approach provides:
 
 ## License
 
-This project is derived from @DevelApp-ai/enfaparser but excludes the original license as requested. The enhancements and new code are provided for evaluation and development purposes.
+This project is derived from @DevelApp/enfaparser but excludes the original license as requested. The enhancements and new code are provided for evaluation and development purposes.
 
 ## Acknowledgments
 
-- Original ENFA parser concept and implementation by @DevelApp-ai/enfaparser
+- Original ENFA parser concept and implementation by @DevelApp/enfaparser
 - PCRE2 specification for comprehensive regex feature reference
 - .NET community for modern C# language features and tooling

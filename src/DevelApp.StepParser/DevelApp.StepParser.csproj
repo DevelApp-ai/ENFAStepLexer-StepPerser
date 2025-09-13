@@ -11,15 +11,15 @@
     <PackageId>DevelApp.StepParser</PackageId>
     <Title>Step Parser - GLR-Style Multi-Path Parsing with CognitiveGraph Integration</Title>
     <Description>A modern parser implementation with GLR-style multi-path parsing, context-sensitive grammar support, and CognitiveGraph integration for advanced semantic analysis. Part of the GrammarForge step-parser architecture.</Description>
-    <Authors>DevelApp-ai</Authors>
-    <Company>DevelApp-ai</Company>
+    <Authors>DevelApp</Authors>
+    <Company>DevelApp</Company>
     <Product>DevelApp.StepParser</Product>
-    <Copyright>Copyright (c) 2024 DevelApp-ai</Copyright>
+    <Copyright>Copyright (c) 2024 DevelApp</Copyright>
     
     <!-- Package Metadata -->
     <PackageTags>parser;glr;multi-path;context-sensitive;grammar;cognitive-graph;step-parser</PackageTags>
-    <PackageProjectUrl>https://github.com/DevelApp-ai/ENFAStepLexer-StepPerser</PackageProjectUrl>
-    <RepositoryUrl>https://github.com/DevelApp-ai/ENFAStepLexer-StepPerser</RepositoryUrl>
+    <PackageProjectUrl>https://github.com/DevelApp/ENFAStepLexer-StepPerser</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/DevelApp/ENFAStepLexer-StepPerser</RepositoryUrl>
     <RepositoryType>git</RepositoryType>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <PackageRequireLicenseAcceptance>false</PackageRequireLicenseAcceptance>

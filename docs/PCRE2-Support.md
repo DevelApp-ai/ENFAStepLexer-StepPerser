@@ -2,7 +2,7 @@
 
 ## Overview
 
-This document describes the PCRE2 (Perl Compatible Regular Expression) features supported by the ENFAStepLexer-StepParser implementation based on the @DevelApp-ai/enfaparser project.
+This document describes the PCRE2 (Perl Compatible Regular Expression) features supported by the ENFAStepLexer-StepParser implementation based on the @DevelApp/enfaparser project.
 
 ## Supported PCRE2 Features
 
