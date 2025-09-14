@@ -17,6 +17,7 @@ jobs:
     outputs:
       version: ${{ steps.gitversion.outputs.SemVer }}
       nugetVersion: ${{ steps.gitversion.outputs.NuGetVersionV2 }}
+      releaseVersion: ${{ steps.calculate-clean-version.outputs.clean_version }}
       isPrerelease: ${{ steps.gitversion.outputs.PreReleaseTag != '' }}
     steps:
     - uses: actions/checkout@v4
@@ -34,6 +35,17 @@ jobs:
       with:
         useConfigFile: true
         configFilePath: GitVersion.yml
+        
+    - name: Calculate clean version for releases
+      id: calculate-clean-version
+      run: |
+        # Extract clean version without pre-release suffix for releases
+        FULL_VERSION="${{ steps.gitversion.outputs.SemVer }}"
+        # Remove any pre-release suffix (everything after the first hyphen)
+        CLEAN_VERSION=$(echo "$FULL_VERSION" | sed 's/-.*$//')
+        echo "Full version: $FULL_VERSION"
+        echo "Clean version: $CLEAN_VERSION"
+        echo "clean_version=$CLEAN_VERSION" >> $GITHUB_OUTPUT
 
   build-and-test:
     runs-on: ubuntu-latest
@@ -174,11 +186,31 @@ jobs:
       with:
         dotnet-version: ${{ env.DOTNET_VERSION }}
         
-    - name: Download NuGet packages
-      uses: actions/download-artifact@v4
-      with:
-        name: nuget-packages
-        path: ./nupkg
+    - name: Restore dependencies
+      run: dotnet restore
+        
+    - name: Build Release packages with clean versions
+      run: |
+        # Build projects first
+        dotnet build --configuration Release --no-restore -p:Version=${{ needs.calculate-version.outputs.releaseVersion }}
+        
+        # Pack with clean version for release
+        dotnet pack src/DevelApp.StepLexer/DevelApp.StepLexer.csproj \
+          --configuration Release \
+          --no-build \
+          --output ./nupkg \
+          -p:PackageVersion=${{ needs.calculate-version.outputs.releaseVersion }} \
+          -p:Version=${{ needs.calculate-version.outputs.releaseVersion }}
+        
+        dotnet pack src/DevelApp.StepParser/DevelApp.StepParser.csproj \
+          --configuration Release \
+          --no-build \
+          --output ./nupkg \
+          -p:PackageVersion=${{ needs.calculate-version.outputs.releaseVersion }} \
+          -p:Version=${{ needs.calculate-version.outputs.releaseVersion }}
+          
+        echo "Release packages created:"
+        ls -la ./nupkg/
         
     - name: Create local packages folder
       run: |
