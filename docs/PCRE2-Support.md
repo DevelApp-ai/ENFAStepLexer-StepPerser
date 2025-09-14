@@ -105,7 +105,7 @@ This document describes the PCRE2 (Perl Compatible Regular Expression) features 
 ### Advanced Features Not Implemented
 
 1. **Atomic Grouping**: `(?>...)`
-   - **Reasoning**: Requires backtracking prevention mechanisms not present in current ENFA architecture
+   - **Reasoning**: Requires backtracking prevention mechanisms not present in current StepLexer architecture
 
 2. **Possessive Quantifiers**: `*+`, `++`, `?+`, `{n,m}+`
    - **Reasoning**: Similar to atomic grouping, requires advanced backtracking control
@@ -114,7 +114,7 @@ This document describes the PCRE2 (Perl Compatible Regular Expression) features 
    - **Reasoning**: Adds significant complexity to state machine logic
 
 4. **Recursive Patterns**: `(?R)`, `(?&name)`, `(?1)`
-   - **Reasoning**: Requires stack-based recursion support in the ENFA state machine
+   - **Reasoning**: Requires stack-based recursion support in the StepLexer architecture
 
 5. **Subroutines**: `(?1)`, `(?-1)`, `(?+1)`
    - **Reasoning**: Similar to recursive patterns, needs subroutine call mechanisms
@@ -136,6 +136,62 @@ This document describes the PCRE2 (Perl Compatible Regular Expression) features 
 
 10. **Variable-Length Lookbehind**
     - **Reasoning**: Current implementation assumes fixed-length lookbehind for efficiency
+
+## Excluded Features (By Design)
+
+The following features are intentionally excluded from the StepLexer-StepParser system due to architectural design decisions that prioritize performance, predictability, and maintainability.
+
+### ❌ Atomic Grouping Support
+
+**Pattern Examples:** `(?>atomic)`, `(?>(?:ab|a)c)`
+
+**Why Excluded:**
+- **Conflicts with forward-only parsing architecture**: Atomic grouping requires the ability to prevent backtracking, which fundamentally conflicts with the StepLexer's forward-only, zero-copy design
+- **Would require backtracking mechanisms that violate design principles**: Implementing atomic grouping would necessitate adding backtracking state management, which contradicts the zero-copy, single-pass performance advantages
+- **Compromises zero-copy, single-pass performance advantages**: The memory allocation and state tracking required for atomic grouping would eliminate the zero-copy benefits that make StepLexer efficient
+
+**Alternative Approaches:**
+- **Use possessive quantifiers within forward-parsing paradigm**: While full possessive quantifiers aren't supported, similar effects can be achieved through careful grammar design
+- **Leverage grammar-based parsing in StepParser for complex constructs**: Move complex atomic grouping logic to the StepParser layer where grammar rules can provide similar functionality with explicit structure
+- **Pattern restructuring**: Rewrite patterns to avoid atomic grouping by making them more explicit and less dependent on backtracking behavior
+
+**Technical Impact:**
+- Memory usage remains predictable and minimal
+- Parsing performance stays within linear bounds
+- Pattern compilation is fast and deterministic
+
+### ❌ Recursive Pattern Support
+
+**Pattern Examples:** `(?R)`, `(?&name)`, `(?1)`, `(?-2)`
+
+**Why Excluded:**
+- **Adds unnecessary complexity to lexer architecture**: Recursive patterns require stack management and dynamic state tracking that significantly complicates the lexer's streamlined architecture
+- **Better handled by grammar-based StepParser for recursive constructs**: The StepParser is specifically designed to handle recursive language constructs through production rules, making it the more appropriate layer for recursion
+- **Would compromise predictable memory usage and performance**: Recursive patterns can lead to unbounded memory usage and unpredictable performance characteristics, violating the StepLexer's performance guarantees
+
+**Alternative Approaches:**
+- **Use StepParser with production rules for recursive language constructs**: Define recursive patterns using grammar production rules like `<expr> ::= <expr> '+' <expr> | <number>`
+- **Implement balanced parsing through grammar rules rather than regex recursion**: Use grammar-based approaches for balanced constructs like parentheses matching or nested structures
+- **Hierarchical pattern decomposition**: Break complex recursive patterns into simpler, non-recursive components that can be combined at the parser level
+
+**Technical Benefits:**
+- Maintains linear memory usage characteristics
+- Enables proper error recovery and reporting for recursive constructs
+- Provides better debugging and analysis capabilities through explicit grammar structure
+
+**Example Alternative Pattern:**
+
+Instead of recursive regex:
+```regex
+(?R)  # Match nested parentheses recursively
+```
+
+Use StepParser grammar:
+```grammar
+<balanced> ::= '(' <content> ')'
+<content>  ::= <balanced> <content> | <char> <content> | ε
+<char>     ::= /[^()]/
+```
 
 ## Architecture Notes
 

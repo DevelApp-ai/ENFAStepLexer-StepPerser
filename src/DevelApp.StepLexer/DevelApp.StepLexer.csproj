@@ -25,7 +25,7 @@
     <PackageProjectUrl>https://github.com/DevelApp/ENFAStepLexer-StepPerser</PackageProjectUrl>
     <RepositoryUrl>https://github.com/DevelApp/ENFAStepLexer-StepPerser</RepositoryUrl>
     <RepositoryType>git</RepositoryType>
-    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageLicenseExpression>AGPL-3.0-or-later</PackageLicenseExpression>
     <PackageRequireLicenseAcceptance>false</PackageRequireLicenseAcceptance>
     <PackageReadmeFile>README.md</PackageReadmeFile>
     
