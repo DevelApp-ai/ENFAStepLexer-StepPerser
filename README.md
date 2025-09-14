@@ -234,6 +234,20 @@ ENFAStepLexer-StepPerser/
 └── README.md                         # This file
 ```
 
+## Documentation
+
+### Component Documentation
+- [**StepLexer Documentation**](docs/StepLexer.md) - Comprehensive guide to zero-copy lexical analysis
+- [**StepParser Documentation**](docs/StepParser.md) - Complete semantic parsing and CognitiveGraph integration
+- [**PCRE2 Support Matrix**](docs/PCRE2-Support.md) - Feature compatibility and exclusion explanations
+- [**Grammar Creation Guide**](docs/Grammar_File_Creation_Guide.md) - DSL development and grammar authoring
+
+### Quick Navigation
+- **Getting Started**: See [Quick Start](#quick-start) section above
+- **Architecture Overview**: [Architecture](#architecture) section
+- **Feature Support**: [PCRE2 Feature Support](#pcre2-feature-support) section
+- **Performance**: [Performance](#performance) section
+
 ## Contributing
 
 This project welcomes contributions in several areas:
