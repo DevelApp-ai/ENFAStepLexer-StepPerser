@@ -160,8 +160,10 @@ jobs:
   publish-nuget-org:
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     runs-on: ubuntu-latest
-    needs: [calculate-version, build-and-test, security-scan]
+    needs: [calculate-version, build-and-test, security-scan, publish-github-packages]
     environment: production
+    permissions:
+      contents: write
     steps:
     - uses: actions/checkout@v4
       with:
@@ -177,6 +179,20 @@ jobs:
       with:
         name: nuget-packages
         path: ./nupkg
+        
+    - name: Create local packages folder
+      run: |
+        mkdir -p ./packages
+        cp ./nupkg/*.nupkg ./packages/
+        echo "Packages copied to local packages folder:"
+        ls -la ./packages/
+        
+    - name: Upload packages folder artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: packages-folder
+        path: ./packages/
+        retention-days: 30
         
     - name: Check release conditions
       id: release_check
@@ -209,8 +225,10 @@ jobs:
         echo "is_first_release=$IS_FIRST_RELEASE" >> $GITHUB_OUTPUT
         echo "should_release=$SHOULD_RELEASE" >> $GITHUB_OUTPUT
         
-    - name: Publish to NuGet.org
-      if: steps.release_check.outputs.should_release == 'true'
+    - name: Publish to NuGet.org (when secrets available)
+      if: steps.release_check.outputs.should_release == 'true' && env.NUGET_API_KEY != ''
+      env:
+        NUGET_API_KEY: ${{ secrets.NUGET_API_KEY }}
       run: |
         # Check which type of release this is
         if [[ "${{ steps.release_check.outputs.is_first_release }}" == "true" ]]; then
@@ -226,15 +244,36 @@ jobs:
             --api-key ${{ secrets.NUGET_API_KEY }} \
             --skip-duplicate || echo "Package already exists, skipping..."
         done
+        
+    - name: Note about NuGet.org publishing
+      if: steps.release_check.outputs.should_release == 'true' && env.NUGET_API_KEY == ''
+      env:
+        NUGET_API_KEY: ${{ secrets.NUGET_API_KEY }}
+      run: |
+        echo "⚠️  NUGET_API_KEY not available - skipping NuGet.org publishing"
+        echo "📦 Packages are available in the packages-folder artifact for manual publishing"
 
   create-github-release:
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     runs-on: ubuntu-latest
-    needs: [calculate-version, build-and-test, security-scan]
+    needs: [calculate-version, build-and-test, security-scan, publish-nuget-org]
+    permissions:
+      contents: write
     steps:
     - uses: actions/checkout@v4
       with:
         fetch-depth: 0
+    
+    - name: Download packages folder
+      uses: actions/download-artifact@v4
+      with:
+        name: packages-folder
+        path: ./packages
+        
+    - name: List available packages
+      run: |
+        echo "📦 Available packages for release:"
+        ls -la ./packages/
       
     - name: Check release conditions
       id: release_check
@@ -307,7 +346,8 @@ jobs:
           - Integrated AST functionality with DevelApp.CognitiveGraph
           
           See the [CHANGELOG](CHANGELOG.md) for detailed changes." \
-            --target main
+            --target main \
+            ./packages/*.nupkg
         else
           echo "Subsequent release detected - using standard release process"
           git tag v${{ needs.calculate-version.outputs.version }}
@@ -338,5 +378,6 @@ jobs:
           - Integrated AST functionality with DevelApp.CognitiveGraph
           
           See the [CHANGELOG](CHANGELOG.md) for detailed changes." \
-            --target main
+            --target main \
+            ./packages/*.nupkg
         fi
