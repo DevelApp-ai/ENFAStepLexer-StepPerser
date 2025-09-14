@@ -128,9 +128,19 @@ jobs:
       run: |
         echo "Checking release conditions..."
         
-        # Check if this is a stable release (not prerelease)
-        IS_STABLE="${{ needs.calculate-release-version.outputs.isPrerelease == 'false' }}"
-        echo "Is stable release: $IS_STABLE"
+        # Get the clean release version (e.g., "1.0.1")
+        CLEAN_VERSION="${{ needs.calculate-release-version.outputs.releaseVersion }}"
+        echo "Clean release version: $CLEAN_VERSION"
+        
+        # Check if this is a semantic version release (not a pre-release like 0.x.x)
+        # We should release if we have a clean version like 1.0.1, 1.1.0, etc.
+        if [[ "$CLEAN_VERSION" =~ ^[1-9][0-9]*\.[0-9]+\.[0-9]+$ ]]; then
+          IS_RELEASE_VERSION="true"
+          echo "Is release version (1.x.x or higher): true"
+        else
+          IS_RELEASE_VERSION="false"
+          echo "Is release version (1.x.x or higher): false"
+        fi
         
         # Check if this is the first release (no existing tags)
         if ! git tag -l | grep -q .; then
@@ -142,15 +152,17 @@ jobs:
         fi
         
         # Determine if we should proceed with release
-        if [[ "$IS_STABLE" == "true" || "$IS_FIRST_RELEASE" == "true" ]]; then
+        # Release if: we have a release version (1.x.x+) OR this is the first release
+        if [[ "$IS_RELEASE_VERSION" == "true" || "$IS_FIRST_RELEASE" == "true" ]]; then
           SHOULD_RELEASE="true"
           echo "Should create release: true"
         else
           SHOULD_RELEASE="false"
-          echo "Should create release: false"
+          echo "Should create release: false (not a release version and not first release)"
         fi
         
-        echo "is_stable=$IS_STABLE" >> $GITHUB_OUTPUT
+        echo "clean_version=$CLEAN_VERSION" >> $GITHUB_OUTPUT
+        echo "is_release_version=$IS_RELEASE_VERSION" >> $GITHUB_OUTPUT
         echo "is_first_release=$IS_FIRST_RELEASE" >> $GITHUB_OUTPUT
         echo "should_release=$SHOULD_RELEASE" >> $GITHUB_OUTPUT
         
@@ -212,9 +224,19 @@ jobs:
       run: |
         echo "Checking release conditions..."
         
-        # Check if this is a stable release (not prerelease)
-        IS_STABLE="${{ needs.calculate-release-version.outputs.isPrerelease == 'false' }}"
-        echo "Is stable release: $IS_STABLE"
+        # Get the clean release version (e.g., "1.0.1")
+        CLEAN_VERSION="${{ needs.calculate-release-version.outputs.releaseVersion }}"
+        echo "Clean release version: $CLEAN_VERSION"
+        
+        # Check if this is a semantic version release (not a pre-release like 0.x.x)
+        # We should release if we have a clean version like 1.0.1, 1.1.0, etc.
+        if [[ "$CLEAN_VERSION" =~ ^[1-9][0-9]*\.[0-9]+\.[0-9]+$ ]]; then
+          IS_RELEASE_VERSION="true"
+          echo "Is release version (1.x.x or higher): true"
+        else
+          IS_RELEASE_VERSION="false"
+          echo "Is release version (1.x.x or higher): false"
+        fi
         
         # Check if this is the first release (no existing tags)
         if ! git tag -l | grep -q .; then
@@ -226,15 +248,17 @@ jobs:
         fi
         
         # Determine if we should proceed with release
-        if [[ "$IS_STABLE" == "true" || "$IS_FIRST_RELEASE" == "true" ]]; then
+        # Release if: we have a release version (1.x.x+) OR this is the first release
+        if [[ "$IS_RELEASE_VERSION" == "true" || "$IS_FIRST_RELEASE" == "true" ]]; then
           SHOULD_RELEASE="true"
           echo "Should create release: true"
         else
           SHOULD_RELEASE="false"
-          echo "Should create release: false"
+          echo "Should create release: false (not a release version and not first release)"
         fi
         
-        echo "is_stable=$IS_STABLE" >> $GITHUB_OUTPUT
+        echo "clean_version=$CLEAN_VERSION" >> $GITHUB_OUTPUT
+        echo "is_release_version=$IS_RELEASE_VERSION" >> $GITHUB_OUTPUT
         echo "is_first_release=$IS_FIRST_RELEASE" >> $GITHUB_OUTPUT
         echo "should_release=$SHOULD_RELEASE" >> $GITHUB_OUTPUT
       
