@@ -128,9 +128,19 @@ jobs:
       run: |
         echo "Checking release conditions..."
         
-        # Check if this is a stable release (not prerelease)
-        IS_STABLE="${{ needs.calculate-release-version.outputs.isPrerelease == 'false' }}"
-        echo "Is stable release: $IS_STABLE"
+        # Get the clean release version (e.g., "1.0.1")
+        CLEAN_VERSION="${{ needs.calculate-release-version.outputs.releaseVersion }}"
+        echo "Clean release version: $CLEAN_VERSION"
+        
+        # Check if this is a semantic version release (not a pre-release like 0.x.x)
+        # We should release if we have a clean version like 1.0.1, 1.1.0, etc.
+        if [[ "$CLEAN_VERSION" =~ ^[1-9][0-9]*\.[0-9]+\.[0-9]+$ ]]; then
+          IS_RELEASE_VERSION="true"
+          echo "Is release version (1.x.x or higher): true"
+        else
+          IS_RELEASE_VERSION="false"
+          echo "Is release version (1.x.x or higher): false"
+        fi
         
         # Check if this is the first release (no existing tags)
         if ! git tag -l | grep -q .; then
@@ -142,15 +152,17 @@ jobs:
         fi
         
         # Determine if we should proceed with release
-        if [[ "$IS_STABLE" == "true" || "$IS_FIRST_RELEASE" == "true" ]]; then
+        # Release if: we have a release version (1.x.x+) OR this is the first release
+        if [[ "$IS_RELEASE_VERSION" == "true" || "$IS_FIRST_RELEASE" == "true" ]]; then
           SHOULD_RELEASE="true"
           echo "Should create release: true"
         else
           SHOULD_RELEASE="false"
-          echo "Should create release: false"
+          echo "Should create release: false (not a release version and not first release)"
         fi
         
-        echo "is_stable=$IS_STABLE" >> $GITHUB_OUTPUT
+        echo "clean_version=$CLEAN_VERSION" >> $GITHUB_OUTPUT
+        echo "is_release_version=$IS_RELEASE_VERSION" >> $GITHUB_OUTPUT
         echo "is_first_release=$IS_FIRST_RELEASE" >> $GITHUB_OUTPUT
         echo "should_release=$SHOULD_RELEASE" >> $GITHUB_OUTPUT
         
@@ -212,9 +224,19 @@ jobs:
       run: |
         echo "Checking release conditions..."
         
-        # Check if this is a stable release (not prerelease)
-        IS_STABLE="${{ needs.calculate-release-version.outputs.isPrerelease == 'false' }}"
-        echo "Is stable release: $IS_STABLE"
+        # Get the clean release version (e.g., "1.0.1")
+        CLEAN_VERSION="${{ needs.calculate-release-version.outputs.releaseVersion }}"
+        echo "Clean release version: $CLEAN_VERSION"
+        
+        # Check if this is a semantic version release (not a pre-release like 0.x.x)
+        # We should release if we have a clean version like 1.0.1, 1.1.0, etc.
+        if [[ "$CLEAN_VERSION" =~ ^[1-9][0-9]*\.[0-9]+\.[0-9]+$ ]]; then
+          IS_RELEASE_VERSION="true"
+          echo "Is release version (1.x.x or higher): true"
+        else
+          IS_RELEASE_VERSION="false"
+          echo "Is release version (1.x.x or higher): false"
+        fi
         
         # Check if this is the first release (no existing tags)
         if ! git tag -l | grep -q .; then
@@ -226,15 +248,17 @@ jobs:
         fi
         
         # Determine if we should proceed with release
-        if [[ "$IS_STABLE" == "true" || "$IS_FIRST_RELEASE" == "true" ]]; then
+        # Release if: we have a release version (1.x.x+) OR this is the first release
+        if [[ "$IS_RELEASE_VERSION" == "true" || "$IS_FIRST_RELEASE" == "true" ]]; then
           SHOULD_RELEASE="true"
           echo "Should create release: true"
         else
           SHOULD_RELEASE="false"
-          echo "Should create release: false"
+          echo "Should create release: false (not a release version and not first release)"
         fi
         
-        echo "is_stable=$IS_STABLE" >> $GITHUB_OUTPUT
+        echo "clean_version=$CLEAN_VERSION" >> $GITHUB_OUTPUT
+        echo "is_release_version=$IS_RELEASE_VERSION" >> $GITHUB_OUTPUT
         echo "is_first_release=$IS_FIRST_RELEASE" >> $GITHUB_OUTPUT
         echo "should_release=$SHOULD_RELEASE" >> $GITHUB_OUTPUT
       
@@ -247,16 +271,40 @@ jobs:
         RELEASE_VERSION="${{ needs.calculate-release-version.outputs.releaseVersion }}"
         echo "Creating release for clean version: $RELEASE_VERSION"
         
-        # Check which type of release this is
-        if [[ "${{ steps.release_check.outputs.is_first_release }}" == "true" ]]; then
-          echo "First release detected - creating initial release tag"
+        # Check if tag already exists
+        if git tag -l | grep -q "^v$RELEASE_VERSION$"; then
+          TAG_EXISTS="true"
+          echo "Tag v$RELEASE_VERSION already exists"
+        else
+          TAG_EXISTS="false"
+          echo "Tag v$RELEASE_VERSION does not exist"
+        fi
+        
+        # Check if release already exists  
+        if gh release view "v$RELEASE_VERSION" >/dev/null 2>&1; then
+          RELEASE_EXISTS="true"
+          echo "Release v$RELEASE_VERSION already exists"
+        else
+          RELEASE_EXISTS="false"
+          echo "Release v$RELEASE_VERSION does not exist"
+        fi
+        
+        # Handle tag creation
+        if [[ "$TAG_EXISTS" == "false" ]]; then
+          echo "Creating new tag v$RELEASE_VERSION"
           git tag "v$RELEASE_VERSION"
           git push origin "v$RELEASE_VERSION"
+        else
+          echo "Tag v$RELEASE_VERSION already exists, skipping tag creation"
+        fi
+        
+        # Handle release creation/update
+        if [[ "$RELEASE_EXISTS" == "false" ]]; then
+          echo "Creating new release v$RELEASE_VERSION"
           
-          # Create the GitHub release
-          gh release create "v$RELEASE_VERSION" \
-            --title "Release v$RELEASE_VERSION" \
-            --notes "## Changes in v$RELEASE_VERSION
+          if [[ "${{ steps.release_check.outputs.is_first_release }}" == "true" ]]; then
+            echo "First release detected - creating initial release"
+            RELEASE_NOTES="## Changes in v$RELEASE_VERSION
           
           ### New Package Architecture
           - 📦 **DevelApp.StepLexer** - Advanced UTF-8 tokenization with multi-path support
@@ -277,24 +325,57 @@ jobs:
           - Updated namespace from ENFA_Parser.Core to DevelApp.StepLexer/DevelApp.StepParser
           - Integrated AST functionality with DevelApp.CognitiveGraph
           
-          See the [CHANGELOG](CHANGELOG.md) for detailed changes." \
-            --target main \
-            ./packages/*.nupkg
-        else
-          echo "Subsequent release detected - using standard release process"
-          git tag "v$RELEASE_VERSION"
-          git push origin "v$RELEASE_VERSION"
-          
-          # Create the GitHub release
-          gh release create "v$RELEASE_VERSION" \
-            --title "Release v$RELEASE_VERSION" \
-            --notes "## Changes in v$RELEASE_VERSION
+          See the [CHANGELOG](CHANGELOG.md) for detailed changes."
+          else
+            echo "Subsequent release detected - using standard release notes"
+            RELEASE_NOTES="## Changes in v$RELEASE_VERSION
           
           ### Package Updates
           - 📦 **DevelApp.StepLexer** v$RELEASE_VERSION - Advanced UTF-8 tokenization
           - 📦 **DevelApp.StepParser** v$RELEASE_VERSION - GLR-style multi-path parsing
           
-          See the [CHANGELOG](CHANGELOG.md) for detailed changes." \
+          See the [CHANGELOG](CHANGELOG.md) for detailed changes."
+          fi
+          
+          # Create the GitHub release
+          gh release create "v$RELEASE_VERSION" \
+            --title "Release v$RELEASE_VERSION" \
+            --notes "$RELEASE_NOTES" \
             --target main \
             ./packages/*.nupkg
+        else
+          echo "Release v$RELEASE_VERSION already exists - updating with clean packages"
+          
+          # Upload the clean packages to the existing release
+          gh release upload "v$RELEASE_VERSION" ./packages/*.nupkg --clobber
+          
+          echo "✅ Updated release v$RELEASE_VERSION with clean packages:"
+          ls -la ./packages/
+          
+          # Update release notes to indicate clean packages
+          gh release edit "v$RELEASE_VERSION" \
+            --notes "## Release v$RELEASE_VERSION - Clean Packages Available
+          
+          🎉 **Updated with clean release packages (without CI suffixes)**
+          
+          ### Package Architecture
+          - 📦 **DevelApp.StepLexer** v$RELEASE_VERSION - Advanced UTF-8 tokenization with multi-path support
+          - 📦 **DevelApp.StepParser** v$RELEASE_VERSION - GLR-style multi-path parsing with CognitiveGraph integration
+          
+          ### GrammarForge Step-Parser Features
+          - ✨ StepLexer with unified regex pattern parsing and source tokenization
+          - ⚡ StepParser with GLR-style incremental parsing for ambiguity resolution
+          - 🔗 CognitiveGraph integration for advanced semantic analysis  
+          - 🎯 Context-sensitive grammar support with hierarchical scopes
+          - 🔧 Location-based refactoring operations (extract, inline, rename)
+          - 📝 Grammar inheritance with ANTLR/Bison/Yacc base grammar support
+          - 💾 Zero-copy UTF-8 processing with ReadOnlyMemory support
+          - 🔀 Multi-path tokenization for handling ambiguous input
+          
+          ### Breaking Changes
+          - Replaced single ENFAStepLexer.StepParser package with split architecture
+          - Updated namespace from ENFA_Parser.Core to DevelApp.StepLexer/DevelApp.StepParser
+          - Integrated AST functionality with DevelApp.CognitiveGraph
+          
+          See the [CHANGELOG](CHANGELOG.md) for detailed changes."
         fi
