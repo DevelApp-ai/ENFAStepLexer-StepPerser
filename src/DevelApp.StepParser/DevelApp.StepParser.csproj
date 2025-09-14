@@ -31,7 +31,7 @@
     
     <!-- Release Notes -->
     <PackageReleaseNotes>
-      v1.0.0: 
+      v1.0.1: 
       - NEW: StepParser with GLR-style multi-path parsing for ambiguity resolution
       - NEW: Context-sensitive grammar support with hierarchical scopes
       - NEW: CognitiveGraph integration for advanced semantic analysis
