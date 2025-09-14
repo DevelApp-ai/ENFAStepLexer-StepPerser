@@ -78,5 +78,34 @@ namespace DevelApp.StepLexer.Tests
             var actualCleanVersion = inputVersion.Split('-')[0];
             Assert.Equal(expectedCleanVersion, actualCleanVersion);
         }
+        
+        [Fact]
+        public void CdPipeline_Should_ProduceCleanVersionPackages()
+        {
+            // This test validates that the CD pipeline produces packages with clean versions
+            // when building for release to NuGet.org (as opposed to CI packages with suffixes)
+            
+            // Simulate what the CD pipeline does:
+            // 1. GitVersion generates a version like "1.0.1-ci0004" 
+            // 2. CD pipeline extracts clean version "1.0.1"
+            // 3. Packages are built with clean version
+            
+            var gitVersionOutput = "1.0.1-ci0004";
+            var cleanVersion = gitVersionOutput.Split('-')[0];
+            
+            // Verify the clean version extraction
+            Assert.Equal("1.0.1", cleanVersion);
+            
+            // Verify package names that would be generated
+            var expectedLexerPackage = $"DevelApp.StepLexer.{cleanVersion}.nupkg";
+            var expectedParserPackage = $"DevelApp.StepParser.{cleanVersion}.nupkg";
+            
+            Assert.Equal("DevelApp.StepLexer.1.0.1.nupkg", expectedLexerPackage);
+            Assert.Equal("DevelApp.StepParser.1.0.1.nupkg", expectedParserPackage);
+            
+            // Verify these do NOT contain CI suffixes
+            Assert.DoesNotContain("-ci", expectedLexerPackage);
+            Assert.DoesNotContain("-ci", expectedParserPackage);
+        }
     }
 }

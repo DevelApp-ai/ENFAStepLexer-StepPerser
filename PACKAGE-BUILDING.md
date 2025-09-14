@@ -84,19 +84,32 @@ dotnet add package DevelApp.StepParser --source "Local"
 
 ## CI/CD Integration
 
-The repository includes automated package building and publishing:
+The repository uses a split CI/CD pipeline approach to ensure clean release package naming:
 
-### GitHub Packages
-- Packages are published to GitHub Packages on every push/PR
+### CI Pipeline (.github/workflows/ci.yml)
+- Runs on pushes and pull requests to main/develop branches
+- Builds and tests code with all configurations (Debug/Release)
+- Publishes packages with CI version suffixes (e.g., `1.0.1-ci0004`) to GitHub Packages
 - Available at: `https://nuget.pkg.github.com/DevelApp-ai/index.json`
 
-### NuGet.org
-- Stable releases are published to NuGet.org from main branch
-- Pre-releases are published from develop branch
+### CD Pipeline (.github/workflows/cd.yml)
+- Runs **only** on pushes to main branch (not PRs)
+- Calculates clean versions by removing pre-release suffixes
+- Generates release packages with clean names (e.g., `DevelApp.StepParser.1.0.1.nupkg`)
+- Publishes to NuGet.org with production-ready package names
+- Creates GitHub releases with proper versioning
 
 ### Version Management
 - Uses GitVersion for semantic versioning
-- Version is calculated from Git history and branch conventions
+- CI pipeline: Uses GitVersion output directly (may include CI suffixes)
+- CD pipeline: Extracts clean version using `sed 's/-.*$//'` to remove suffixes
+- This ensures release packages have clean names like `1.0.1` instead of `1.0.1-ci0004`
+
+### Pipeline Separation Benefits
+- Prevents GitVersion reuse between PR builds and release builds
+- Ensures NuGet.org packages have clean, professional version names
+- Maintains CI package traceability through GitHub Packages
+- Allows independent CI testing without affecting release versioning
 
 ## Project Structure
 
