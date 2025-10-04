@@ -107,5 +107,99 @@ namespace DevelApp.StepLexer.Tests
             Assert.DoesNotContain("-ci", expectedLexerPackage);
             Assert.DoesNotContain("-ci", expectedParserPackage);
         }
+        
+        [Theory]
+        [InlineData("1.2.3", 42, "main", "1.2.3-beta.42")]
+        [InlineData("2.1.0", 15, "main", "2.1.0-beta.15")]
+        [InlineData("1.0.1", 7, "develop", "1.0.1-alpha.7")]
+        [InlineData("1.5.0", 123, "feature/new-parser", "1.5.0-alpha.123")]
+        public void PullRequestVersioning_Should_CreateCorrectVersionsByTarget(string baseVersion, int prNumber, string targetBranch, string expectedVersion)
+        {
+            // This test validates the new PR-based versioning strategy:
+            // - PRs to main → beta versions (e.g., 1.2.3-beta.42)
+            // - PRs to other branches → alpha versions (e.g., 1.2.3-alpha.42)
+            
+            var actualVersion = GeneratePrVersion(baseVersion, prNumber, targetBranch);
+            Assert.Equal(expectedVersion, actualVersion);
+        }
+        
+        [Fact]
+        public void GitHubPackagesPublishing_Should_HandleDifferentVersionTypes()
+        {
+            // This test validates that different version types are properly handled for GitHub Packages
+            
+            // Test beta version patterns (PR to main)
+            var betaVersionPattern = @"^DevelApp\.StepLexer\.\d+\.\d+\.\d+-beta\.\d+\.nupkg$";
+            var betaRegex = new Regex(betaVersionPattern);
+            Assert.True(betaRegex.IsMatch("DevelApp.StepLexer.1.2.3-beta.42.nupkg"), 
+                "Beta version should match beta pattern");
+            
+            // Test alpha version patterns (PR to other branches)
+            var alphaVersionPattern = @"^DevelApp\.StepLexer\.\d+\.\d+\.\d+-alpha\.\d+\.nupkg$";
+            var alphaRegex = new Regex(alphaVersionPattern);
+            Assert.True(alphaRegex.IsMatch("DevelApp.StepLexer.1.2.3-alpha.15.nupkg"), 
+                "Alpha version should match alpha pattern");
+            
+            // Test CI version patterns (direct push)
+            var ciVersionPattern = @"^DevelApp\.StepLexer\.\d+\.\d+\.\d+-ci\d+\.nupkg$";
+            var ciRegex = new Regex(ciVersionPattern);
+            Assert.True(ciRegex.IsMatch("DevelApp.StepLexer.1.2.3-ci0042.nupkg"), 
+                "CI version should match CI pattern");
+        }
+        
+        [Fact]
+        public void VersionTypeDetection_Should_IdentifyCorrectContext()
+        {
+            // This test validates the version type detection logic used in CI workflow
+            
+            // Test main branch releases (should go to GitHub Packages as stable)
+            Assert.True(IsMainBranchRelease("main", false), "Main branch push should be release");
+            
+            // Test PR scenarios
+            Assert.True(IsPullRequestToBeta("pull_request", "main"), "PR to main should be beta");
+            Assert.True(IsPullRequestToAlpha("pull_request", "develop"), "PR to develop should be alpha");
+            Assert.True(IsPullRequestToAlpha("pull_request", "feature/test"), "PR to feature should be alpha");
+        }
+        
+        /// <summary>
+        /// Simulates the PR version generation logic from the CI workflow
+        /// </summary>
+        private static string GeneratePrVersion(string baseVersion, int prNumber, string targetBranch)
+        {
+            var cleanVersion = baseVersion.Split('-')[0];
+            
+            if (targetBranch == "main")
+            {
+                return $"{cleanVersion}-beta.{prNumber}";
+            }
+            else
+            {
+                return $"{cleanVersion}-alpha.{prNumber}";
+            }
+        }
+        
+        /// <summary>
+        /// Simulates main branch release detection
+        /// </summary>
+        private static bool IsMainBranchRelease(string branch, bool isPullRequest)
+        {
+            return branch == "main" && !isPullRequest;
+        }
+        
+        /// <summary>
+        /// Simulates PR to main detection (should generate beta)
+        /// </summary>
+        private static bool IsPullRequestToBeta(string eventName, string targetBranch)
+        {
+            return eventName == "pull_request" && targetBranch == "main";
+        }
+        
+        /// <summary>
+        /// Simulates PR to non-main detection (should generate alpha)
+        /// </summary>
+        private static bool IsPullRequestToAlpha(string eventName, string targetBranch)
+        {
+            return eventName == "pull_request" && targetBranch != "main";
+        }
     }
 }

@@ -89,7 +89,10 @@ The repository uses a split CI/CD pipeline approach to ensure clean release pack
 ### CI Pipeline (.github/workflows/ci.yml)
 - Runs on pushes and pull requests to main/develop branches
 - Builds and tests code with all configurations (Debug/Release)
-- Publishes packages with CI version suffixes (e.g., `1.0.1-ci0004`) to GitHub Packages
+- Publishes packages to GitHub Packages with context-aware versioning:
+  - **Main branch pushes**: CI versions (e.g., `1.0.1-ci0004`)
+  - **Pull requests to main**: Beta versions (e.g., `1.0.1-beta.42`) 
+  - **Pull requests to other branches**: Alpha versions (e.g., `1.0.1-alpha.15`)
 - Available at: `https://nuget.pkg.github.com/DevelApp-ai/index.json`
 
 ### CD Pipeline (.github/workflows/cd.yml)
@@ -100,16 +103,23 @@ The repository uses a split CI/CD pipeline approach to ensure clean release pack
 - Creates GitHub releases with proper versioning
 
 ### Version Management
-- Uses GitVersion for semantic versioning
-- CI pipeline: Uses GitVersion output directly (may include CI suffixes)
-- CD pipeline: Extracts clean version using `sed 's/-.*$//'` to remove suffixes
-- This ensures release packages have clean names like `1.0.1` instead of `1.0.1-ci0004`
+- Uses GitVersion for semantic versioning with enhanced PR context detection
+- **CI pipeline versioning strategy**:
+  - Direct pushes: Uses GitVersion output (may include CI suffixes like `1.0.1-ci0004`)  
+  - PRs to main: Beta versions (e.g., `1.0.1-beta.42`)
+  - PRs to other branches: Alpha versions (e.g., `1.0.1-alpha.15`)
+- **CD pipeline**: Extracts clean version using `sed 's/-.*$//'` to remove suffixes
+- This ensures release packages have clean names like `1.0.1` for NuGet.org while providing appropriate pre-release versions for development workflows
 
 ### Pipeline Separation Benefits
 - Prevents GitVersion reuse between PR builds and release builds
 - Ensures NuGet.org packages have clean, professional version names
-- Maintains CI package traceability through GitHub Packages
+- Maintains CI package traceability through GitHub Packages with proper pre-release versioning
 - Allows independent CI testing without affecting release versioning
+- **Enhanced GitHub Packages strategy**:
+  - Beta versions for main branch PRs (near-release candidates)
+  - Alpha versions for feature/develop PRs (early development)
+  - CI versions for direct pushes (continuous integration)
 
 ## Project Structure
 
