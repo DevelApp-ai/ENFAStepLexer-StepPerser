@@ -16,8 +16,9 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       version: ${{ steps.gitversion.outputs.SemVer }}
-      nugetVersion: ${{ steps.gitversion.outputs.NuGetVersionV2 }}
-      isPrerelease: ${{ steps.gitversion.outputs.PreReleaseTag != '' }}
+      nugetVersion: ${{ steps.final-version.outputs.final_nuget_version }}
+      isPrerelease: ${{ steps.final-version.outputs.is_prerelease }}
+      versionType: ${{ steps.final-version.outputs.version_type }}
     steps:
     - uses: actions/checkout@v4
       with:
@@ -34,6 +35,60 @@ jobs:
       with:
         useConfigFile: true
         configFilePath: GitVersion.yml
+        
+    - name: Determine final version based on PR context
+      id: final-version
+      run: |
+        BASE_VERSION="${{ steps.gitversion.outputs.SemVer }}"
+        NUGET_VERSION="${{ steps.gitversion.outputs.NuGetVersionV2 }}"
+        
+        # Determine version type and appropriate tagging based on context
+        if [[ "${{ github.event_name }}" == "pull_request" ]]; then
+          TARGET_BRANCH="${{ github.base_ref }}"
+          PR_NUMBER="${{ github.event.number }}"
+          
+          echo "Pull Request Context:"
+          echo "  Target Branch: $TARGET_BRANCH"
+          echo "  PR Number: $PR_NUMBER"
+          echo "  Base Version: $BASE_VERSION"
+          
+          if [[ "$TARGET_BRANCH" == "main" ]]; then
+            # PR targeting main → beta version
+            CLEAN_VERSION=$(echo "$BASE_VERSION" | sed 's/-.*$//')
+            FINAL_VERSION="${CLEAN_VERSION}-beta.${PR_NUMBER}"
+            VERSION_TYPE="beta"
+            echo "PR to main: Using beta version $FINAL_VERSION"
+          else
+            # PR targeting other branches → alpha version  
+            CLEAN_VERSION=$(echo "$BASE_VERSION" | sed 's/-.*$//')
+            FINAL_VERSION="${CLEAN_VERSION}-alpha.${PR_NUMBER}"
+            VERSION_TYPE="alpha"
+            echo "PR to $TARGET_BRANCH: Using alpha version $FINAL_VERSION"
+          fi
+          
+          IS_PRERELEASE="true"
+        else
+          # Direct push to branch - use GitVersion output as-is
+          FINAL_VERSION="$NUGET_VERSION"
+          if [[ "${{ steps.gitversion.outputs.PreReleaseTag }}" != "" ]]; then
+            IS_PRERELEASE="true"
+            VERSION_TYPE="ci"
+          else
+            IS_PRERELEASE="false" 
+            VERSION_TYPE="release"
+          fi
+          echo "Direct push: Using GitVersion output $FINAL_VERSION"
+        fi
+        
+        echo "Final version calculation:"
+        echo "  Base Version: $BASE_VERSION"
+        echo "  Final Version: $FINAL_VERSION"
+        echo "  Is Prerelease: $IS_PRERELEASE"
+        echo "  Version Type: $VERSION_TYPE"
+        
+        echo "final_nuget_version=$FINAL_VERSION" >> $GITHUB_OUTPUT
+        echo "is_prerelease=$IS_PRERELEASE" >> $GITHUB_OUTPUT
+        echo "version_type=$VERSION_TYPE" >> $GITHUB_OUTPUT
 
   build-and-test:
     runs-on: ubuntu-latest
@@ -76,24 +131,34 @@ jobs:
         name: test-results-${{ matrix.configuration }}
         path: ./TestResults
         
-    - name: Pack CI NuGet packages
+    - name: Pack NuGet packages with appropriate versioning
       if: matrix.configuration == 'Release'
       run: |
-        # Pack DevelApp.StepLexer with CI version
+        VERSION_TYPE="${{ needs.calculate-version.outputs.versionType }}"
+        PACKAGE_VERSION="${{ needs.calculate-version.outputs.nugetVersion }}"
+        
+        echo "Packing packages:"
+        echo "  Version Type: $VERSION_TYPE" 
+        echo "  Package Version: $PACKAGE_VERSION"
+        
+        # Pack DevelApp.StepLexer
         dotnet pack src/DevelApp.StepLexer/DevelApp.StepLexer.csproj \
           --configuration Release \
           --no-build \
           --output ./nupkg \
-          -p:PackageVersion=${{ needs.calculate-version.outputs.nugetVersion }} \
+          -p:PackageVersion=$PACKAGE_VERSION \
           -p:Version=${{ needs.calculate-version.outputs.version }}
         
-        # Pack DevelApp.StepParser with CI version
+        # Pack DevelApp.StepParser  
         dotnet pack src/DevelApp.StepParser/DevelApp.StepParser.csproj \
           --configuration Release \
           --no-build \
           --output ./nupkg \
-          -p:PackageVersion=${{ needs.calculate-version.outputs.nugetVersion }} \
+          -p:PackageVersion=$PACKAGE_VERSION \
           -p:Version=${{ needs.calculate-version.outputs.version }}
+          
+        echo "Generated packages:"
+        ls -la ./nupkg/
           
     - name: Upload CI NuGet packages
       if: matrix.configuration == 'Release'
@@ -148,7 +213,25 @@ jobs:
           
     - name: Publish to GitHub Packages
       run: |
-        echo "Publishing CI packages to GitHub Packages..."
+        VERSION_TYPE="${{ needs.calculate-version.outputs.versionType }}"
+        PACKAGE_VERSION="${{ needs.calculate-version.outputs.nugetVersion }}"
+        
+        echo "Publishing packages to GitHub Packages:"
+        echo "  Version Type: $VERSION_TYPE"
+        echo "  Package Version: $PACKAGE_VERSION" 
+        echo "  Event: ${{ github.event_name }}"
+        
+        if [[ "${{ github.event_name }}" == "pull_request" ]]; then
+          TARGET_BRANCH="${{ github.base_ref }}"
+          if [[ "$TARGET_BRANCH" == "main" ]]; then
+            echo "📦 Publishing BETA packages (PR to main) to GitHub Packages"
+          else
+            echo "📦 Publishing ALPHA packages (PR to $TARGET_BRANCH) to GitHub Packages"
+          fi
+        else
+          echo "📦 Publishing CI packages (direct push) to GitHub Packages"
+        fi
+        
         for package in ./nupkg/*.nupkg; do
           echo "Publishing $package to GitHub Packages..."
           dotnet nuget push "$package" \
@@ -156,3 +239,7 @@ jobs:
             --api-key ${{ secrets.GITHUB_TOKEN }} \
             --skip-duplicate || echo "Package already exists, skipping..."
         done
+        
+        echo "✅ Package publishing complete!"
+        echo "📦 Published packages:"
+        ls -la ./nupkg/
