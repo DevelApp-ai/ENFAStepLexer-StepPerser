@@ -391,6 +391,9 @@ namespace DevelApp.StepParser
         /// </summary>
         public RefactoringResult ExtractVariable(ICodeLocation location, string variableName)
         {
+            if (!_refactoringOps.ContainsKey("extract-variable"))
+                return new RefactoringResult { Success = false, Message = "Extract variable operation not available. Load a grammar first." };
+
             var operation = _refactoringOps["extract-variable"];
             if (operation.Execute == null)
                 return new RefactoringResult { Success = false, Message = "Extract variable operation not available" };
@@ -407,6 +410,9 @@ namespace DevelApp.StepParser
         /// </summary>
         public RefactoringResult InlineVariable(ICodeLocation location)
         {
+            if (!_refactoringOps.ContainsKey("inline-variable"))
+                return new RefactoringResult { Success = false, Message = "Inline variable operation not available. Load a grammar first." };
+
             var operation = _refactoringOps["inline-variable"];
             if (operation.Execute == null)
                 return new RefactoringResult { Success = false, Message = "Inline variable operation not available" };
@@ -422,6 +428,9 @@ namespace DevelApp.StepParser
         /// </summary>
         public RefactoringResult Rename(ICodeLocation location, string newName)
         {
+            if (!_refactoringOps.ContainsKey("rename"))
+                return new RefactoringResult { Success = false, Message = "Rename operation not available. Load a grammar first." };
+
             var operation = _refactoringOps["rename"];
             if (operation.Execute == null)
                 return new RefactoringResult { Success = false, Message = "Rename operation not available" };
