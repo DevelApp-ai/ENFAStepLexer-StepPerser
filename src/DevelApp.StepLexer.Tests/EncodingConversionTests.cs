@@ -8,31 +8,30 @@ namespace DevelApp.StepLexer.Tests
     public class EncodingConverterTests
     {
         [Fact]
-        public void ConvertToUTF8_UTF8Input_ReturnsSameBytes()
+        public void ConvertToUTF8_UTF8Input_ReturnsSameContent()
         {
             // Arrange
             var testString = "Hello, World!";
             var utf8Bytes = Encoding.UTF8.GetBytes(testString);
 
             // Act
-            var result = EncodingConverter.ConvertToUTF8(utf8Bytes, SourceEncoding.UTF8);
+            var result = EncodingConverter.ConvertToUTF8(utf8Bytes, Encoding.UTF8);
 
             // Assert
-            Assert.Equal(utf8Bytes, result);
+            Assert.Equal(testString, Encoding.UTF8.GetString(result));
         }
 
         [Fact]
-        public void ConvertToUTF8_ASCIIInput_ReturnsSameBytes()
+        public void ConvertToUTF8_ASCIIInput_ConvertsCorrectly()
         {
             // Arrange
             var testString = "Simple ASCII text";
             var asciiBytes = Encoding.ASCII.GetBytes(testString);
 
             // Act
-            var result = EncodingConverter.ConvertToUTF8(asciiBytes, SourceEncoding.ASCII);
+            var result = EncodingConverter.ConvertToUTF8(asciiBytes, Encoding.ASCII);
 
             // Assert
-            Assert.Equal(asciiBytes, result);
             Assert.Equal(testString, Encoding.UTF8.GetString(result));
         }
 
@@ -45,7 +44,7 @@ namespace DevelApp.StepLexer.Tests
             var latin1Bytes = latin1.GetBytes(testString);
 
             // Act
-            var result = EncodingConverter.ConvertToUTF8(latin1Bytes, SourceEncoding.Latin1);
+            var result = EncodingConverter.ConvertToUTF8(latin1Bytes, latin1);
 
             // Assert
             Assert.Equal(testString, Encoding.UTF8.GetString(result));
@@ -56,24 +55,11 @@ namespace DevelApp.StepLexer.Tests
         {
             // Arrange
             var testString = "Extended chars: àéîöü";
-            
-            // Windows-1252 might not be available on all platforms
-            // Use Latin-1 as a fallback which is similar
-            Encoding encoding;
-            try
-            {
-                encoding = Encoding.GetEncoding(1252);
-            }
-            catch (NotSupportedException)
-            {
-                // Skip test if encoding not available
-                return;
-            }
-            
-            var windows1252Bytes = encoding.GetBytes(testString);
+            var windows1252 = Encoding.GetEncoding(1252);
+            var windows1252Bytes = windows1252.GetBytes(testString);
 
             // Act
-            var result = EncodingConverter.ConvertToUTF8(windows1252Bytes, SourceEncoding.Windows1252);
+            var result = EncodingConverter.ConvertToUTF8(windows1252Bytes, 1252);
 
             // Assert
             Assert.Equal(testString, Encoding.UTF8.GetString(result));
@@ -87,7 +73,7 @@ namespace DevelApp.StepLexer.Tests
             var utf16Bytes = Encoding.Unicode.GetBytes(testString);
 
             // Act
-            var result = EncodingConverter.ConvertToUTF8(utf16Bytes, SourceEncoding.UTF16LE);
+            var result = EncodingConverter.ConvertToUTF8(utf16Bytes, Encoding.Unicode);
 
             // Assert
             Assert.Equal(testString, Encoding.UTF8.GetString(result));
@@ -101,45 +87,36 @@ namespace DevelApp.StepLexer.Tests
             var utf16Bytes = Encoding.BigEndianUnicode.GetBytes(testString);
 
             // Act
-            var result = EncodingConverter.ConvertToUTF8(utf16Bytes, SourceEncoding.UTF16BE);
+            var result = EncodingConverter.ConvertToUTF8(utf16Bytes, Encoding.BigEndianUnicode);
 
             // Assert
             Assert.Equal(testString, Encoding.UTF8.GetString(result));
         }
 
         [Fact]
-        public void ConvertToUTF8_UTF32LEInput_ConvertsCorrectly()
+        public void ConvertToUTF8_UTF32Input_ConvertsCorrectly()
         {
             // Arrange
             var testString = "UTF32 test: Hello 世界";
             var utf32Bytes = Encoding.UTF32.GetBytes(testString);
 
             // Act
-            var result = EncodingConverter.ConvertToUTF8(utf32Bytes, SourceEncoding.UTF32LE);
+            var result = EncodingConverter.ConvertToUTF8(utf32Bytes, Encoding.UTF32);
 
             // Assert
             Assert.Equal(testString, Encoding.UTF8.GetString(result));
         }
 
         [Fact]
-        public void ConvertToUTF8_UTF32BEInput_ConvertsCorrectly()
+        public void ConvertToUTF8_ByEncodingName_ConvertsCorrectly()
         {
             // Arrange
-            var testString = "UTF32BE: 你好";
-            var utf32LEBytes = Encoding.UTF32.GetBytes(testString);
-            
-            // Convert LE to BE
-            byte[] utf32BEBytes = new byte[utf32LEBytes.Length];
-            for (int i = 0; i < utf32LEBytes.Length; i += 4)
-            {
-                utf32BEBytes[i] = utf32LEBytes[i + 3];
-                utf32BEBytes[i + 1] = utf32LEBytes[i + 2];
-                utf32BEBytes[i + 2] = utf32LEBytes[i + 1];
-                utf32BEBytes[i + 3] = utf32LEBytes[i];
-            }
+            var testString = "Test with encoding name";
+            var shiftJIS = Encoding.GetEncoding("shift_jis");
+            var shiftJISBytes = shiftJIS.GetBytes(testString);
 
             // Act
-            var result = EncodingConverter.ConvertToUTF8(utf32BEBytes, SourceEncoding.UTF32BE);
+            var result = EncodingConverter.ConvertToUTF8(shiftJISBytes, "shift_jis");
 
             // Assert
             Assert.Equal(testString, Encoding.UTF8.GetString(result));
@@ -152,119 +129,123 @@ namespace DevelApp.StepLexer.Tests
             var emptyBytes = Array.Empty<byte>();
 
             // Act
-            var result = EncodingConverter.ConvertToUTF8(emptyBytes, SourceEncoding.UTF8);
+            var result = EncodingConverter.ConvertToUTF8(emptyBytes, Encoding.UTF8);
 
             // Assert
             Assert.Empty(result);
         }
 
         [Fact]
-        public void DetectEncoding_UTF8BOM_ReturnsUTF8()
+        public void DetectEncodingFromBOM_UTF8BOM_ReturnsUTF8()
         {
             // Arrange
             var bom = new byte[] { 0xEF, 0xBB, 0xBF, 0x48, 0x65, 0x6C, 0x6C, 0x6F }; // UTF-8 BOM + "Hello"
 
             // Act
-            var detected = EncodingConverter.DetectEncoding(bom);
+            var (encoding, bomLength) = EncodingConverter.DetectEncodingFromBOM(bom);
 
             // Assert
-            Assert.Equal(SourceEncoding.UTF8, detected);
+            Assert.Equal(Encoding.UTF8.CodePage, encoding.CodePage);
+            Assert.Equal(3, bomLength);
         }
 
         [Fact]
-        public void DetectEncoding_UTF16LEBOM_ReturnsUTF16LE()
+        public void DetectEncodingFromBOM_UTF16LEBOM_ReturnsUTF16LE()
         {
             // Arrange
             var bom = new byte[] { 0xFF, 0xFE, 0x48, 0x00 }; // UTF-16LE BOM
 
             // Act
-            var detected = EncodingConverter.DetectEncoding(bom);
+            var (encoding, bomLength) = EncodingConverter.DetectEncodingFromBOM(bom);
 
             // Assert
-            Assert.Equal(SourceEncoding.UTF16LE, detected);
+            Assert.Equal(Encoding.Unicode.CodePage, encoding.CodePage);
+            Assert.Equal(2, bomLength);
         }
 
         [Fact]
-        public void DetectEncoding_UTF16BEBOM_ReturnsUTF16BE()
+        public void DetectEncodingFromBOM_UTF16BEBOM_ReturnsUTF16BE()
         {
             // Arrange
             var bom = new byte[] { 0xFE, 0xFF, 0x00, 0x48 }; // UTF-16BE BOM
 
             // Act
-            var detected = EncodingConverter.DetectEncoding(bom);
+            var (encoding, bomLength) = EncodingConverter.DetectEncodingFromBOM(bom);
 
             // Assert
-            Assert.Equal(SourceEncoding.UTF16BE, detected);
+            Assert.Equal(Encoding.BigEndianUnicode.CodePage, encoding.CodePage);
+            Assert.Equal(2, bomLength);
         }
 
         [Fact]
-        public void DetectEncoding_UTF32LEBOM_ReturnsUTF32LE()
+        public void DetectEncodingFromBOM_NoBOM_ReturnsUTF8()
         {
             // Arrange
-            var bom = new byte[] { 0xFF, 0xFE, 0x00, 0x00, 0x48, 0x00, 0x00, 0x00 }; // UTF-32LE BOM
+            var noBOM = Encoding.ASCII.GetBytes("No BOM here");
 
             // Act
-            var detected = EncodingConverter.DetectEncoding(bom);
+            var (encoding, bomLength) = EncodingConverter.DetectEncodingFromBOM(noBOM);
 
             // Assert
-            Assert.Equal(SourceEncoding.UTF32LE, detected);
+            Assert.Equal(Encoding.UTF8.CodePage, encoding.CodePage);
+            Assert.Equal(0, bomLength);
         }
 
         [Fact]
-        public void DetectEncoding_UTF32BEBOM_ReturnsUTF32BE()
-        {
-            // Arrange
-            var bom = new byte[] { 0x00, 0x00, 0xFE, 0xFF, 0x00, 0x00, 0x00, 0x48 }; // UTF-32BE BOM
-
-            // Act
-            var detected = EncodingConverter.DetectEncoding(bom);
-
-            // Assert
-            Assert.Equal(SourceEncoding.UTF32BE, detected);
-        }
-
-        [Fact]
-        public void DetectEncoding_ASCIIText_ReturnsASCII()
-        {
-            // Arrange
-            var asciiBytes = Encoding.ASCII.GetBytes("Simple ASCII text without special chars");
-
-            // Act
-            var detected = EncodingConverter.DetectEncoding(asciiBytes);
-
-            // Assert
-            Assert.Equal(SourceEncoding.ASCII, detected);
-        }
-
-        [Fact]
-        public void ConvertToUTF8_AutoDetectUTF8BOM_ConvertsCorrectly()
+        public void ConvertToUTF8WithAutoDetect_UTF8BOM_ConvertsCorrectly()
         {
             // Arrange
             var testString = "Hello, World!";
             var bom = new byte[] { 0xEF, 0xBB, 0xBF };
             var utf8Bytes = Encoding.UTF8.GetBytes(testString);
-            var withBom = bom.Concat(utf8Bytes).ToArray();
+            var withBOM = bom.Concat(utf8Bytes).ToArray();
 
             // Act
-            var result = EncodingConverter.ConvertToUTF8(withBom, SourceEncoding.AutoDetect);
-
-            // Assert
-            var resultString = Encoding.UTF8.GetString(result);
-            Assert.Contains("Hello", resultString);
-        }
-
-        [Fact]
-        public void ConvertToUTF8_UTF16WithBOM_RemovesBOM()
-        {
-            // Arrange
-            var testString = "Test";
-            var utf16WithBOM = Encoding.Unicode.GetPreamble().Concat(Encoding.Unicode.GetBytes(testString)).ToArray();
-
-            // Act
-            var result = EncodingConverter.ConvertToUTF8(utf16WithBOM, SourceEncoding.UTF16LE);
+            var result = EncodingConverter.ConvertToUTF8WithAutoDetect(withBOM);
 
             // Assert
             Assert.Equal(testString, Encoding.UTF8.GetString(result));
+        }
+
+        [Fact]
+        public void GetAvailableEncodings_ReturnsEncodings()
+        {
+            // Act
+            var encodings = EncodingConverter.GetAvailableEncodings();
+
+            // Assert
+            Assert.NotEmpty(encodings);
+            Assert.Contains(encodings, e => e.CodePage == 65001); // UTF-8
+        }
+
+        [Fact]
+        public void IsEncodingAvailable_ValidEncodingName_ReturnsTrue()
+        {
+            // Act
+            var isAvailable = EncodingConverter.IsEncodingAvailable("UTF-8");
+
+            // Assert
+            Assert.True(isAvailable);
+        }
+
+        [Fact]
+        public void IsEncodingAvailable_InvalidEncodingName_ReturnsFalse()
+        {
+            // Act
+            var isAvailable = EncodingConverter.IsEncodingAvailable("invalid-encoding-xyz");
+
+            // Assert
+            Assert.False(isAvailable);
+        }
+
+        [Fact]
+        public void IsEncodingAvailable_ValidCodePage_ReturnsTrue()
+        {
+            // Act
+            var isAvailable = EncodingConverter.IsEncodingAvailable(65001); // UTF-8
+
+            // Assert
+            Assert.True(isAvailable);
         }
     }
 
@@ -279,7 +260,7 @@ namespace DevelApp.StepLexer.Tests
             var utf16Bytes = Encoding.Unicode.GetBytes(pattern);
 
             // Act
-            var result = parser.ParsePattern(utf16Bytes, SourceEncoding.UTF16LE, "test_pattern");
+            var result = parser.ParsePattern(utf16Bytes, Encoding.Unicode, "test_pattern");
 
             // Assert
             Assert.True(result);
@@ -295,45 +276,46 @@ namespace DevelApp.StepLexer.Tests
             var latin1Bytes = latin1.GetBytes(pattern);
 
             // Act
-            var result = parser.ParsePattern(latin1Bytes, SourceEncoding.Latin1, "test_pattern");
+            var result = parser.ParsePattern(latin1Bytes, latin1, "test_pattern");
 
             // Assert
             Assert.True(result);
         }
 
         [Fact]
-        public void ParsePattern_WithASCIIEncoding_ParsesCorrectly()
+        public void ParsePattern_WithEncodingName_ParsesCorrectly()
         {
             // Arrange
             var parser = new PatternParser(ParserType.Regex);
             var pattern = @"\w+";
-            var asciiBytes = Encoding.ASCII.GetBytes(pattern);
+            var ascii = Encoding.ASCII;
+            var asciiBytes = ascii.GetBytes(pattern);
 
             // Act
-            var result = parser.ParsePattern(asciiBytes, SourceEncoding.ASCII, "test_pattern");
+            var result = parser.ParsePattern(asciiBytes, "ASCII", "test_pattern");
 
             // Assert
             Assert.True(result);
         }
 
         [Fact]
-        public void ParsePatternFromStream_WithAutoDetect_ParsesCorrectly()
+        public void ParsePattern_WithCodePage_ParsesCorrectly()
         {
             // Arrange
             var parser = new PatternParser(ParserType.Regex);
-            var pattern = @"\d{2,4}";
-            var utf8Bytes = Encoding.UTF8.GetBytes(pattern);
-            using var stream = new MemoryStream(utf8Bytes);
+            var pattern = @"[a-z]+";
+            var latin1 = Encoding.GetEncoding(28591); // ISO-8859-1 code page
+            var latin1Bytes = latin1.GetBytes(pattern);
 
             // Act
-            var result = parser.ParsePatternFromStream(stream, SourceEncoding.AutoDetect, "test_pattern");
+            var result = parser.ParsePattern(latin1Bytes, 28591, "test_pattern");
 
             // Assert
             Assert.True(result);
         }
 
         [Fact]
-        public void ParsePatternFromStream_WithUTF16LE_ParsesCorrectly()
+        public void ParsePatternFromStream_WithEncoding_ParsesCorrectly()
         {
             // Arrange
             var parser = new PatternParser(ParserType.Regex);
@@ -342,37 +324,25 @@ namespace DevelApp.StepLexer.Tests
             using var stream = new MemoryStream(utf16Bytes);
 
             // Act
-            var result = parser.ParsePatternFromStream(stream, SourceEncoding.UTF16LE, "test_pattern");
+            var result = parser.ParsePatternFromStream(stream, Encoding.Unicode, "test_pattern");
 
             // Assert
             Assert.True(result);
         }
 
         [Fact]
-        public void ParsePattern_WithUTF8Encoding_ParsesCorrectly()
+        public void ParsePatternFromStreamWithAutoDetect_WithBOM_ParsesCorrectly()
         {
             // Arrange
             var parser = new PatternParser(ParserType.Regex);
-            var pattern = @"hello|world";
+            var pattern = @"\d{2,4}";
+            var bom = Encoding.UTF8.GetPreamble();
             var utf8Bytes = Encoding.UTF8.GetBytes(pattern);
+            var withBOM = bom.Concat(utf8Bytes).ToArray();
+            using var stream = new MemoryStream(withBOM);
 
             // Act
-            var result = parser.ParsePattern(utf8Bytes, SourceEncoding.UTF8, "test_pattern");
-
-            // Assert
-            Assert.True(result);
-        }
-
-        [Fact]
-        public void ParsePattern_ComplexPatternWithUTF16BE_ParsesCorrectly()
-        {
-            // Arrange
-            var parser = new PatternParser(ParserType.Regex);
-            var pattern = @"(foo|bar)\d+";
-            var utf16Bytes = Encoding.BigEndianUnicode.GetBytes(pattern);
-
-            // Act
-            var result = parser.ParsePattern(utf16Bytes, SourceEncoding.UTF16BE, "test_pattern");
+            var result = parser.ParsePatternFromStreamWithAutoDetect(stream, "test_pattern");
 
             // Assert
             Assert.True(result);

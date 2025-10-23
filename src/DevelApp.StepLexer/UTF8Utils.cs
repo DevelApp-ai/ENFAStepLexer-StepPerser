@@ -5,230 +5,169 @@ using System.Text;
 namespace DevelApp.StepLexer
 {
     /// <summary>
-    /// Supported source encodings for efficient conversion to UTF-8
-    /// </summary>
-    public enum SourceEncoding
-    {
-        /// <summary>UTF-8 (no conversion needed)</summary>
-        UTF8,
-        /// <summary>ASCII (7-bit)</summary>
-        ASCII,
-        /// <summary>UTF-16 Little Endian</summary>
-        UTF16LE,
-        /// <summary>UTF-16 Big Endian</summary>
-        UTF16BE,
-        /// <summary>UTF-32 Little Endian</summary>
-        UTF32LE,
-        /// <summary>UTF-32 Big Endian</summary>
-        UTF32BE,
-        /// <summary>ISO-8859-1 (Latin-1)</summary>
-        Latin1,
-        /// <summary>Windows-1252 (Western European)</summary>
-        Windows1252,
-        /// <summary>Auto-detect from BOM or content</summary>
-        AutoDetect
-    }
-
-    /// <summary>
-    /// Efficient encoding converter for converting various formats to UTF-8
+    /// Encoding converter that uses System.Text.Encoding library for converting various formats to UTF-8.
+    /// Supports hundreds of encodings through the .NET encoding infrastructure.
     /// </summary>
     public static class EncodingConverter
     {
+        static EncodingConverter()
+        {
+            // Register the code pages provider to enable support for hundreds of encodings
+            // This includes Windows code pages, ISO encodings, and many others
+            Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);
+        }
+
         /// <summary>
-        /// Convert from various encodings to UTF-8 efficiently
+        /// Convert from any encoding to UTF-8 using encoding name or code page
         /// </summary>
         /// <param name="sourceBytes">Source bytes in the specified encoding</param>
-        /// <param name="sourceEncoding">Source encoding type</param>
+        /// <param name="sourceEncoding">The source encoding (e.g., "UTF-16", "ISO-8859-1", "Windows-1252", etc.)</param>
         /// <returns>UTF-8 encoded bytes</returns>
-        public static byte[] ConvertToUTF8(ReadOnlySpan<byte> sourceBytes, SourceEncoding sourceEncoding)
+        /// <exception cref="ArgumentException">If the encoding is not supported</exception>
+        public static byte[] ConvertToUTF8(ReadOnlySpan<byte> sourceBytes, Encoding sourceEncoding)
         {
             if (sourceBytes.IsEmpty)
                 return Array.Empty<byte>();
 
-            return sourceEncoding switch
-            {
-                SourceEncoding.UTF8 => sourceBytes.ToArray(),
-                SourceEncoding.ASCII => ConvertAsciiToUTF8(sourceBytes),
-                SourceEncoding.UTF16LE => ConvertUTF16LEToUTF8(sourceBytes),
-                SourceEncoding.UTF16BE => ConvertUTF16BEToUTF8(sourceBytes),
-                SourceEncoding.UTF32LE => ConvertUTF32LEToUTF8(sourceBytes),
-                SourceEncoding.UTF32BE => ConvertUTF32BEToUTF8(sourceBytes),
-                SourceEncoding.Latin1 => ConvertLatin1ToUTF8(sourceBytes),
-                SourceEncoding.Windows1252 => ConvertWindows1252ToUTF8(sourceBytes),
-                SourceEncoding.AutoDetect => ConvertWithAutoDetect(sourceBytes),
-                _ => throw new NotSupportedException($"Encoding {sourceEncoding} is not supported")
-            };
+            // If already UTF-8, just return a copy
+            if (sourceEncoding.CodePage == Encoding.UTF8.CodePage)
+                return sourceBytes.ToArray();
+
+            // Use the .NET library to convert: source encoding -> string -> UTF-8
+            var chars = sourceEncoding.GetString(sourceBytes.ToArray());
+            return Encoding.UTF8.GetBytes(chars);
         }
 
         /// <summary>
-        /// Detect encoding from BOM (Byte Order Mark) or content analysis
+        /// Convert from any encoding to UTF-8 using encoding name
         /// </summary>
-        public static SourceEncoding DetectEncoding(ReadOnlySpan<byte> bytes)
+        /// <param name="sourceBytes">Source bytes in the specified encoding</param>
+        /// <param name="encodingName">Name of the source encoding (e.g., "UTF-16", "ISO-8859-1", "shift_jis", etc.)</param>
+        /// <returns>UTF-8 encoded bytes</returns>
+        /// <exception cref="ArgumentException">If the encoding name is not recognized</exception>
+        public static byte[] ConvertToUTF8(ReadOnlySpan<byte> sourceBytes, string encodingName)
+        {
+            if (sourceBytes.IsEmpty)
+                return Array.Empty<byte>();
+
+            var encoding = Encoding.GetEncoding(encodingName);
+            return ConvertToUTF8(sourceBytes, encoding);
+        }
+
+        /// <summary>
+        /// Convert from any encoding to UTF-8 using code page number
+        /// </summary>
+        /// <param name="sourceBytes">Source bytes in the specified encoding</param>
+        /// <param name="codePage">Code page number (e.g., 1252 for Windows-1252, 28591 for ISO-8859-1)</param>
+        /// <returns>UTF-8 encoded bytes</returns>
+        /// <exception cref="ArgumentException">If the code page is not supported</exception>
+        public static byte[] ConvertToUTF8(ReadOnlySpan<byte> sourceBytes, int codePage)
+        {
+            if (sourceBytes.IsEmpty)
+                return Array.Empty<byte>();
+
+            var encoding = Encoding.GetEncoding(codePage);
+            return ConvertToUTF8(sourceBytes, encoding);
+        }
+
+        /// <summary>
+        /// Auto-detect encoding from BOM and convert to UTF-8
+        /// </summary>
+        /// <param name="sourceBytes">Source bytes with potential BOM</param>
+        /// <returns>UTF-8 encoded bytes (BOM removed if present)</returns>
+        public static byte[] ConvertToUTF8WithAutoDetect(ReadOnlySpan<byte> sourceBytes)
+        {
+            if (sourceBytes.IsEmpty)
+                return Array.Empty<byte>();
+
+            var (encoding, bomLength) = DetectEncodingFromBOM(sourceBytes);
+            
+            // Skip BOM if detected
+            var dataBytes = sourceBytes.Slice(bomLength);
+            
+            return ConvertToUTF8(dataBytes, encoding);
+        }
+
+        /// <summary>
+        /// Detect encoding from BOM (Byte Order Mark)
+        /// </summary>
+        /// <param name="bytes">Bytes to analyze</param>
+        /// <returns>Detected encoding and BOM length in bytes</returns>
+        public static (Encoding encoding, int bomLength) DetectEncodingFromBOM(ReadOnlySpan<byte> bytes)
         {
             if (bytes.Length == 0)
-                return SourceEncoding.UTF8;
+                return (Encoding.UTF8, 0);
 
-            // Check for BOM
+            // UTF-8 BOM: EF BB BF
             if (bytes.Length >= 3 && bytes[0] == 0xEF && bytes[1] == 0xBB && bytes[2] == 0xBF)
-                return SourceEncoding.UTF8;
+                return (Encoding.UTF8, 3);
             
+            // UTF-32 LE BOM: FF FE 00 00 (must check before UTF-16 LE)
+            if (bytes.Length >= 4 && bytes[0] == 0xFF && bytes[1] == 0xFE && bytes[2] == 0x00 && bytes[3] == 0x00)
+                return (Encoding.UTF32, 4);
+            
+            // UTF-16 LE BOM: FF FE
             if (bytes.Length >= 2 && bytes[0] == 0xFF && bytes[1] == 0xFE)
-            {
-                if (bytes.Length >= 4 && bytes[2] == 0x00 && bytes[3] == 0x00)
-                    return SourceEncoding.UTF32LE;
-                return SourceEncoding.UTF16LE;
-            }
+                return (Encoding.Unicode, 2);
             
+            // UTF-16 BE BOM: FE FF
             if (bytes.Length >= 2 && bytes[0] == 0xFE && bytes[1] == 0xFF)
-                return SourceEncoding.UTF16BE;
+                return (Encoding.BigEndianUnicode, 2);
             
+            // UTF-32 BE BOM: 00 00 FE FF
             if (bytes.Length >= 4 && bytes[0] == 0x00 && bytes[1] == 0x00 && bytes[2] == 0xFE && bytes[3] == 0xFF)
-                return SourceEncoding.UTF32BE;
-
-            // Heuristic detection (simplified)
-            bool hasNulls = false;
-            bool allAscii = true;
-            
-            for (int i = 0; i < Math.Min(bytes.Length, 1024); i++)
             {
-                if (bytes[i] == 0)
-                    hasNulls = true;
-                if (bytes[i] > 127)
-                    allAscii = false;
+                // UTF-32 BE - need to get this encoding by code page
+                return (Encoding.GetEncoding(12001), 4);
             }
 
-            if (allAscii)
-                return SourceEncoding.ASCII;
-            if (hasNulls)
-                return SourceEncoding.UTF16LE; // Likely UTF-16 or UTF-32
-            
-            // Default to UTF-8
-            return SourceEncoding.UTF8;
+            // No BOM detected, assume UTF-8
+            return (Encoding.UTF8, 0);
         }
 
-        private static byte[] ConvertWithAutoDetect(ReadOnlySpan<byte> sourceBytes)
+        /// <summary>
+        /// Get a list of all available encodings on the current system
+        /// </summary>
+        /// <returns>Array of encoding information</returns>
+        public static EncodingInfo[] GetAvailableEncodings()
         {
-            var detected = DetectEncoding(sourceBytes);
-            return ConvertToUTF8(sourceBytes, detected);
+            return Encoding.GetEncodings();
         }
 
-        private static byte[] ConvertAsciiToUTF8(ReadOnlySpan<byte> asciiBytes)
+        /// <summary>
+        /// Check if an encoding is available by name
+        /// </summary>
+        /// <param name="encodingName">Name of the encoding</param>
+        /// <returns>True if the encoding is available</returns>
+        public static bool IsEncodingAvailable(string encodingName)
         {
-            // ASCII is a subset of UTF-8, direct copy
-            return asciiBytes.ToArray();
-        }
-
-        private static byte[] ConvertLatin1ToUTF8(ReadOnlySpan<byte> latin1Bytes)
-        {
-            // Estimate size: Latin-1 chars 0x80-0xFF need 2 bytes in UTF-8
-            int maxSize = latin1Bytes.Length * 2;
-            byte[] result = new byte[maxSize];
-            int writePos = 0;
-
-            for (int i = 0; i < latin1Bytes.Length; i++)
-            {
-                byte b = latin1Bytes[i];
-                
-                if (b < 0x80)
-                {
-                    // ASCII range: direct copy
-                    result[writePos++] = b;
-                }
-                else
-                {
-                    // 0x80-0xFF: encode as 2-byte UTF-8
-                    result[writePos++] = (byte)(0xC0 | (b >> 6));
-                    result[writePos++] = (byte)(0x80 | (b & 0x3F));
-                }
-            }
-
-            Array.Resize(ref result, writePos);
-            return result;
-        }
-
-        private static byte[] ConvertWindows1252ToUTF8(ReadOnlySpan<byte> windows1252Bytes)
-        {
-            // Windows-1252 is similar to Latin-1 but with special mappings in 0x80-0x9F
-            // Try to get the encoding, fall back to Latin-1 if not available
             try
             {
-                var encoding = Encoding.GetEncoding(1252);
-                var chars = encoding.GetString(windows1252Bytes.ToArray());
-                return Encoding.UTF8.GetBytes(chars);
+                Encoding.GetEncoding(encodingName);
+                return true;
             }
-            catch (NotSupportedException)
+            catch
             {
-                // Fall back to Latin-1 if Windows-1252 is not available
-                return ConvertLatin1ToUTF8(windows1252Bytes);
+                return false;
             }
         }
 
-        private static byte[] ConvertUTF16LEToUTF8(ReadOnlySpan<byte> utf16Bytes)
+        /// <summary>
+        /// Check if an encoding is available by code page
+        /// </summary>
+        /// <param name="codePage">Code page number</param>
+        /// <returns>True if the encoding is available</returns>
+        public static bool IsEncodingAvailable(int codePage)
         {
-            if (utf16Bytes.Length % 2 != 0)
-                throw new ArgumentException("UTF-16 input must have even number of bytes");
-
-            // Skip BOM if present
-            int startIndex = 0;
-            if (utf16Bytes.Length >= 2 && utf16Bytes[0] == 0xFF && utf16Bytes[1] == 0xFE)
-                startIndex = 2;
-
-            var chars = System.Text.Encoding.Unicode.GetString(utf16Bytes.Slice(startIndex).ToArray());
-            return Encoding.UTF8.GetBytes(chars);
-        }
-
-        private static byte[] ConvertUTF16BEToUTF8(ReadOnlySpan<byte> utf16Bytes)
-        {
-            if (utf16Bytes.Length % 2 != 0)
-                throw new ArgumentException("UTF-16 input must have even number of bytes");
-
-            // Skip BOM if present
-            int startIndex = 0;
-            if (utf16Bytes.Length >= 2 && utf16Bytes[0] == 0xFE && utf16Bytes[1] == 0xFF)
-                startIndex = 2;
-
-            var chars = System.Text.Encoding.BigEndianUnicode.GetString(utf16Bytes.Slice(startIndex).ToArray());
-            return Encoding.UTF8.GetBytes(chars);
-        }
-
-        private static byte[] ConvertUTF32LEToUTF8(ReadOnlySpan<byte> utf32Bytes)
-        {
-            if (utf32Bytes.Length % 4 != 0)
-                throw new ArgumentException("UTF-32 input must have length divisible by 4");
-
-            // Skip BOM if present
-            int startIndex = 0;
-            if (utf32Bytes.Length >= 4 && utf32Bytes[0] == 0xFF && utf32Bytes[1] == 0xFE && 
-                utf32Bytes[2] == 0x00 && utf32Bytes[3] == 0x00)
-                startIndex = 4;
-
-            var chars = System.Text.Encoding.UTF32.GetString(utf32Bytes.Slice(startIndex).ToArray());
-            return Encoding.UTF8.GetBytes(chars);
-        }
-
-        private static byte[] ConvertUTF32BEToUTF8(ReadOnlySpan<byte> utf32Bytes)
-        {
-            if (utf32Bytes.Length % 4 != 0)
-                throw new ArgumentException("UTF-32 input must have length divisible by 4");
-
-            // Skip BOM if present
-            int startIndex = 0;
-            if (utf32Bytes.Length >= 4 && utf32Bytes[0] == 0x00 && utf32Bytes[1] == 0x00 && 
-                utf32Bytes[2] == 0xFE && utf32Bytes[3] == 0xFF)
-                startIndex = 4;
-
-            // Convert BE to LE by swapping bytes
-            byte[] leBytes = new byte[utf32Bytes.Length - startIndex];
-            for (int i = startIndex; i < utf32Bytes.Length; i += 4)
+            try
             {
-                leBytes[i - startIndex + 3] = utf32Bytes[i];
-                leBytes[i - startIndex + 2] = utf32Bytes[i + 1];
-                leBytes[i - startIndex + 1] = utf32Bytes[i + 2];
-                leBytes[i - startIndex] = utf32Bytes[i + 3];
+                Encoding.GetEncoding(codePage);
+                return true;
             }
-
-            var chars = System.Text.Encoding.UTF32.GetString(leBytes);
-            return Encoding.UTF8.GetBytes(chars);
+            catch
+            {
+                return false;
+            }
         }
     }
 
