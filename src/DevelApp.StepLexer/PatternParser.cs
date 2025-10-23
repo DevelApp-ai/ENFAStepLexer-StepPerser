@@ -75,6 +75,54 @@ namespace DevelApp.StepLexer
         }
         
         /// <summary>
+        /// Parse pattern from bytes with specified source encoding, converting to UTF-8
+        /// </summary>
+        /// <param name="sourceBytes">Source bytes in the specified encoding</param>
+        /// <param name="sourceEncoding">Source encoding object (e.g., Encoding.UTF8, Encoding.GetEncoding("shift_jis"))</param>
+        /// <param name="terminalName">Terminal name for the pattern</param>
+        /// <returns>True if parsing succeeded, false otherwise</returns>
+        public bool ParsePattern(ReadOnlySpan<byte> sourceBytes, Encoding sourceEncoding, string terminalName)
+        {
+            // Convert to UTF-8 using the library
+            byte[] utf8Bytes = EncodingConverter.ConvertToUTF8(sourceBytes, sourceEncoding);
+            
+            _inputBuffer = utf8Bytes;
+            return ParsePattern(utf8Bytes.AsSpan(), terminalName);
+        }
+        
+        /// <summary>
+        /// Parse pattern from bytes with encoding specified by name
+        /// </summary>
+        /// <param name="sourceBytes">Source bytes in the specified encoding</param>
+        /// <param name="encodingName">Encoding name (e.g., "UTF-16", "ISO-8859-1", "shift_jis", "GB2312")</param>
+        /// <param name="terminalName">Terminal name for the pattern</param>
+        /// <returns>True if parsing succeeded, false otherwise</returns>
+        public bool ParsePattern(ReadOnlySpan<byte> sourceBytes, string encodingName, string terminalName)
+        {
+            // Convert to UTF-8 using the library
+            byte[] utf8Bytes = EncodingConverter.ConvertToUTF8(sourceBytes, encodingName);
+            
+            _inputBuffer = utf8Bytes;
+            return ParsePattern(utf8Bytes.AsSpan(), terminalName);
+        }
+        
+        /// <summary>
+        /// Parse pattern from bytes with encoding specified by code page
+        /// </summary>
+        /// <param name="sourceBytes">Source bytes in the specified encoding</param>
+        /// <param name="codePage">Code page number (e.g., 1252 for Windows-1252, 28591 for ISO-8859-1)</param>
+        /// <param name="terminalName">Terminal name for the pattern</param>
+        /// <returns>True if parsing succeeded, false otherwise</returns>
+        public bool ParsePattern(ReadOnlySpan<byte> sourceBytes, int codePage, string terminalName)
+        {
+            // Convert to UTF-8 using the library
+            byte[] utf8Bytes = EncodingConverter.ConvertToUTF8(sourceBytes, codePage);
+            
+            _inputBuffer = utf8Bytes;
+            return ParsePattern(utf8Bytes.AsSpan(), terminalName);
+        }
+        
+        /// <summary>
         /// Parse pattern from stream with zero-copy approach
         /// </summary>
         public bool ParsePatternFromStream(Stream stream, string terminalName)
@@ -94,6 +142,75 @@ namespace DevelApp.StepLexer
             }
             
             // Phase 2: Disambiguation and ENFA construction  
+            if (!_stepLexer.Phase2_Disambiguation())
+            {
+                return false;
+            }
+            
+            return true;
+        }
+        
+        /// <summary>
+        /// Parse pattern from stream with specified encoding
+        /// </summary>
+        /// <param name="stream">Input stream containing the pattern</param>
+        /// <param name="sourceEncoding">Source encoding object</param>
+        /// <param name="terminalName">Terminal name for the pattern</param>
+        /// <returns>True if parsing succeeded, false otherwise</returns>
+        public bool ParsePatternFromStream(Stream stream, Encoding sourceEncoding, string terminalName)
+        {
+            // Read entire stream into memory
+            using var memoryStream = new MemoryStream();
+            stream.CopyTo(memoryStream);
+            var sourceBytes = memoryStream.ToArray();
+            
+            // Convert to UTF-8 using the library
+            byte[] utf8Bytes = EncodingConverter.ConvertToUTF8(sourceBytes, sourceEncoding);
+            
+            _inputBuffer = utf8Bytes;
+            var inputView = new ZeroCopyStringView(_inputBuffer);
+            
+            // Phase 1: Fast lexical analysis
+            if (!_stepLexer.Phase1_LexicalScan(inputView))
+            {
+                return false;
+            }
+            
+            // Phase 2: Disambiguation and ENFA construction
+            if (!_stepLexer.Phase2_Disambiguation())
+            {
+                return false;
+            }
+            
+            return true;
+        }
+        
+        /// <summary>
+        /// Parse pattern from stream with automatic encoding detection from BOM
+        /// </summary>
+        /// <param name="stream">Input stream containing the pattern</param>
+        /// <param name="terminalName">Terminal name for the pattern</param>
+        /// <returns>True if parsing succeeded, false otherwise</returns>
+        public bool ParsePatternFromStreamWithAutoDetect(Stream stream, string terminalName)
+        {
+            // Read entire stream into memory
+            using var memoryStream = new MemoryStream();
+            stream.CopyTo(memoryStream);
+            var sourceBytes = memoryStream.ToArray();
+            
+            // Auto-detect encoding and convert to UTF-8
+            byte[] utf8Bytes = EncodingConverter.ConvertToUTF8WithAutoDetect(sourceBytes);
+            
+            _inputBuffer = utf8Bytes;
+            var inputView = new ZeroCopyStringView(_inputBuffer);
+            
+            // Phase 1: Fast lexical analysis
+            if (!_stepLexer.Phase1_LexicalScan(inputView))
+            {
+                return false;
+            }
+            
+            // Phase 2: Disambiguation and ENFA construction
             if (!_stepLexer.Phase2_Disambiguation())
             {
                 return false;

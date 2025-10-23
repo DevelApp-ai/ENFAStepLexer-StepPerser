@@ -21,6 +21,13 @@ DevelApp.StepLexer is a zero-copy, UTF-8 native lexical analyzer designed for hi
 - **Position Tracking**: Accurate source location tracking
 - **Unicode Support**: Full Unicode code point and property support
 
+### 🌐 Encoding Conversion
+- **Library-Based Support**: Uses System.Text.Encoding library for hundreds of encodings
+- **No Custom Maintenance**: Delegates encoding logic to .NET's well-maintained encoding infrastructure
+- **BOM Detection**: Automatic encoding detection from byte order marks
+- **Flexible API**: Support for Encoding objects, encoding names, or code pages
+- **Zero-Copy Integration**: Converted data seamlessly integrated into zero-copy processing pipeline
+
 ## Core Components
 
 ### StepLexer Class
@@ -169,7 +176,7 @@ public enum TokenType
 
 ### PatternParser Class
 
-High-level parser controller for pattern processing.
+High-level parser controller for pattern processing with encoding conversion support.
 
 ```csharp
 public class PatternParser
@@ -179,6 +186,27 @@ public class PatternParser
     // Zero-copy pattern parsing
     public bool ParsePattern(ReadOnlySpan<byte> utf8Pattern, string terminalName);
     
+    // Pattern parsing with encoding conversion
+    public bool ParsePattern(ReadOnlySpan<byte> sourceBytes, 
+                           Encoding sourceEncoding, 
+                           string terminalName);
+    
+    public bool ParsePattern(ReadOnlySpan<byte> sourceBytes, 
+                           string encodingName, 
+                           string terminalName);
+    
+    public bool ParsePattern(ReadOnlySpan<byte> sourceBytes, 
+                           int codePage, 
+                           string terminalName);
+    
+    // Stream-based parsing with encoding
+    public bool ParsePatternFromStream(Stream stream, 
+                                      Encoding sourceEncoding, 
+                                      string terminalName);
+    
+    public bool ParsePatternFromStreamWithAutoDetect(Stream stream, 
+                                                     string terminalName);
+    
     // Access parsed tokens
     public List<SplittableToken> GetTokens();
 }
@@ -187,6 +215,68 @@ public class PatternParser
 **Parser Types:**
 - `ParserType.Regex`: Regular expression pattern parsing
 - `ParserType.Grammar`: Grammar-based pattern parsing
+
+### EncodingConverter Class
+
+Library-based converter using System.Text.Encoding for hundreds of character encodings.
+
+```csharp
+public static class EncodingConverter
+{
+    // Convert from any encoding to UTF-8 using Encoding object
+    public static byte[] ConvertToUTF8(ReadOnlySpan<byte> sourceBytes, 
+                                       Encoding sourceEncoding);
+    
+    // Convert using encoding name (e.g., "shift_jis", "GB2312", "ISO-8859-1")
+    public static byte[] ConvertToUTF8(ReadOnlySpan<byte> sourceBytes, 
+                                       string encodingName);
+    
+    // Convert using code page number (e.g., 932 for shift_jis, 1252 for Windows-1252)
+    public static byte[] ConvertToUTF8(ReadOnlySpan<byte> sourceBytes, 
+                                       int codePage);
+    
+    // Auto-detect encoding from BOM and convert
+    public static byte[] ConvertToUTF8WithAutoDetect(ReadOnlySpan<byte> sourceBytes);
+    
+    // Detect encoding from BOM
+    public static (Encoding encoding, int bomLength) DetectEncodingFromBOM(ReadOnlySpan<byte> bytes);
+    
+    // Utility methods
+    public static EncodingInfo[] GetAvailableEncodings();
+    public static bool IsEncodingAvailable(string encodingName);
+    public static bool IsEncodingAvailable(int codePage);
+}
+```
+
+**Key Features:**
+- **Library-Based**: Uses System.Text.Encoding with CodePages provider for 100+ encodings
+- **No Maintenance Burden**: Delegates encoding logic to .NET's well-maintained infrastructure
+- **BOM Detection**: Automatically identifies UTF-8, UTF-16 LE/BE, UTF-32 LE/BE from byte order marks
+- **Flexible API**: Accept Encoding objects, names ("shift_jis", "GB2312"), or code pages (932, 936)
+- **Comprehensive Support**: Supports all encodings available in .NET including:
+  - Unicode family: UTF-8, UTF-16, UTF-32
+  - Western: ISO-8859-1 through 15, Windows-1252
+  - Eastern: Shift-JIS, EUC-JP, GB2312, Big5, EUC-KR
+  - Cyrillic: Windows-1251, KOI8-R, ISO-8859-5
+  - Arabic, Hebrew, Thai, Vietnamese, and many more
+
+**Example Encodings:**
+```csharp
+// By Encoding object
+var bytes = EncodingConverter.ConvertToUTF8(sourceBytes, Encoding.UTF8);
+
+// By name (hundreds supported!)
+var shiftJIS = EncodingConverter.ConvertToUTF8(sourceBytes, "shift_jis");
+var gb2312 = EncodingConverter.ConvertToUTF8(sourceBytes, "GB2312");
+var latin1 = EncodingConverter.ConvertToUTF8(sourceBytes, "ISO-8859-1");
+
+// By code page
+var windows1252 = EncodingConverter.ConvertToUTF8(sourceBytes, 1252);
+var shiftJIS932 = EncodingConverter.ConvertToUTF8(sourceBytes, 932);
+
+// Auto-detect from BOM
+var autoDetected = EncodingConverter.ConvertToUTF8WithAutoDetect(sourceBytes);
+```
 
 ## Advanced Features
 
@@ -278,6 +368,150 @@ var view = new ZeroCopyStringView(utf8Data);
 
 var tokens = lexer.TokenizeRegexPattern(view);
 // Handles Unicode properties and code points
+```
+
+### Encoding Conversion
+
+#### Converting from Various Encodings to UTF-8
+
+```csharp
+using DevelApp.StepLexer;
+using System.Text;
+
+// Pattern in UTF-16 format
+var pattern = @"\d{2,4}-\w+";
+var utf16Bytes = Encoding.Unicode.GetBytes(pattern);
+
+// Convert to UTF-8 and parse using Encoding object
+var parser = new PatternParser(ParserType.Regex);
+bool success = parser.ParsePattern(utf16Bytes, Encoding.Unicode, "pattern");
+
+// Or use encoding by name
+var shiftJISBytes = Encoding.GetEncoding("shift_jis").GetBytes(pattern);
+bool sjisSuccess = parser.ParsePattern(shiftJISBytes, "shift_jis", "pattern");
+
+// Or use code page number
+var windows1252Bytes = Encoding.GetEncoding(1252).GetBytes(pattern);
+bool cpSuccess = parser.ParsePattern(windows1252Bytes, 1252, "pattern");
+
+if (success)
+{
+    var tokens = parser.GetTokens();
+    // Process tokens...
+}
+```
+
+#### Auto-Detecting Encoding from Stream
+
+```csharp
+using DevelApp.StepLexer;
+using System.IO;
+
+// Read pattern from file with BOM for auto-detection
+var parser = new PatternParser(ParserType.Regex);
+using var stream = File.OpenRead("pattern.txt");
+
+// Auto-detect encoding from BOM and parse
+bool success = parser.ParsePatternFromStreamWithAutoDetect(stream, "pattern");
+
+if (success)
+{
+    Console.WriteLine("Pattern parsed successfully!");
+}
+```
+
+#### Manual Encoding Detection and Conversion
+
+```csharp
+using DevelApp.StepLexer;
+
+// Read bytes from any source
+byte[] sourceBytes = File.ReadAllBytes("pattern.dat");
+
+// Detect encoding from BOM
+var (encoding, bomLength) = EncodingConverter.DetectEncodingFromBOM(sourceBytes);
+Console.WriteLine($"Detected encoding: {encoding.EncodingName}, BOM: {bomLength} bytes");
+
+// Convert to UTF-8
+byte[] utf8Bytes = EncodingConverter.ConvertToUTF8(sourceBytes, encoding);
+
+// Parse as UTF-8
+var parser = new PatternParser(ParserType.Regex);
+parser.ParsePattern(utf8Bytes, "pattern");
+```
+
+#### Working with Any Encoding by Name
+
+```csharp
+using DevelApp.StepLexer;
+using System.IO;
+using System.Text;
+
+// Check if an encoding is available
+if (EncodingConverter.IsEncodingAvailable("GB2312"))
+{
+    // Pattern file encoded in GB2312 (Simplified Chinese)
+    byte[] gb2312Bytes = File.ReadAllBytes("chinese_pattern.txt");
+    var parser = new PatternParser(ParserType.Regex);
+    
+    // Convert and parse using encoding name
+    bool success = parser.ParsePattern(gb2312Bytes, "GB2312", "chinese_pattern");
+    
+    if (success)
+    {
+        Console.WriteLine("GB2312 pattern processed successfully!");
+    }
+}
+```
+
+#### Discovering Available Encodings
+
+```csharp
+using DevelApp.StepLexer;
+
+// Get all available encodings
+var encodings = EncodingConverter.GetAvailableEncodings();
+
+Console.WriteLine($"Total encodings available: {encodings.Length}");
+Console.WriteLine("\nSample encodings:");
+
+foreach (var encoding in encodings.Take(10))
+{
+    Console.WriteLine($"  {encoding.Name} (Code Page: {encoding.CodePage}) - {encoding.DisplayName}");
+}
+
+// Output examples:
+//   utf-8 (Code Page: 65001) - Unicode (UTF-8)
+//   shift_jis (Code Page: 932) - Japanese (Shift-JIS)
+//   GB2312 (Code Page: 936) - Chinese Simplified (GB2312)
+//   ISO-8859-1 (Code Page: 28591) - Western European (ISO)
+//   windows-1252 (Code Page: 1252) - Western European (Windows)
+```
+
+#### Batch Conversion of Multiple Encodings
+
+```csharp
+using DevelApp.StepLexer;
+using System.Text;
+
+// Process patterns from different sources
+var patterns = new[]
+{
+    (File.ReadAllBytes("pattern_utf8.txt"), Encoding.UTF8),
+    (File.ReadAllBytes("pattern_utf16.txt"), Encoding.Unicode),
+    (File.ReadAllBytes("pattern_sjis.txt"), Encoding.GetEncoding("shift_jis")),
+    (File.ReadAllBytes("pattern_gb2312.txt"), Encoding.GetEncoding("GB2312"))
+};
+
+var parser = new PatternParser(ParserType.Regex);
+
+foreach (var (bytes, encoding) in patterns)
+{
+    if (parser.ParsePattern(bytes, encoding, "pattern"))
+    {
+        Console.WriteLine($"Successfully parsed {encoding.EncodingName} pattern");
+    }
+}
 ```
 
 ## Error Handling
