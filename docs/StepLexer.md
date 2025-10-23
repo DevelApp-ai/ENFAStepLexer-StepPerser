@@ -21,6 +21,12 @@ DevelApp.StepLexer is a zero-copy, UTF-8 native lexical analyzer designed for hi
 - **Position Tracking**: Accurate source location tracking
 - **Unicode Support**: Full Unicode code point and property support
 
+### 🌐 Encoding Conversion
+- **Multiple Format Support**: Efficient conversion from various character encodings to UTF-8
+- **BOM Detection**: Automatic encoding detection from byte order marks
+- **Supported Encodings**: UTF-8, ASCII, UTF-16 (LE/BE), UTF-32 (LE/BE), Latin-1 (ISO-8859-1), Windows-1252
+- **Zero-Copy Integration**: Converted data seamlessly integrated into zero-copy processing pipeline
+
 ## Core Components
 
 ### StepLexer Class
@@ -169,7 +175,7 @@ public enum TokenType
 
 ### PatternParser Class
 
-High-level parser controller for pattern processing.
+High-level parser controller for pattern processing with encoding conversion support.
 
 ```csharp
 public class PatternParser
@@ -179,6 +185,16 @@ public class PatternParser
     // Zero-copy pattern parsing
     public bool ParsePattern(ReadOnlySpan<byte> utf8Pattern, string terminalName);
     
+    // Pattern parsing with encoding conversion
+    public bool ParsePattern(ReadOnlySpan<byte> sourceBytes, 
+                           SourceEncoding sourceEncoding, 
+                           string terminalName);
+    
+    // Stream-based parsing with encoding detection
+    public bool ParsePatternFromStream(Stream stream, 
+                                      SourceEncoding sourceEncoding, 
+                                      string terminalName);
+    
     // Access parsed tokens
     public List<SplittableToken> GetTokens();
 }
@@ -187,6 +203,39 @@ public class PatternParser
 **Parser Types:**
 - `ParserType.Regex`: Regular expression pattern parsing
 - `ParserType.Grammar`: Grammar-based pattern parsing
+
+### EncodingConverter Class
+
+Efficient converter for transforming various character encodings to UTF-8.
+
+```csharp
+public static class EncodingConverter
+{
+    // Convert from various encodings to UTF-8
+    public static byte[] ConvertToUTF8(ReadOnlySpan<byte> sourceBytes, 
+                                       SourceEncoding sourceEncoding);
+    
+    // Auto-detect encoding from BOM or content
+    public static SourceEncoding DetectEncoding(ReadOnlySpan<byte> bytes);
+}
+```
+
+**Supported Source Encodings:**
+- `SourceEncoding.UTF8`: UTF-8 (no conversion)
+- `SourceEncoding.ASCII`: 7-bit ASCII
+- `SourceEncoding.UTF16LE`: UTF-16 Little Endian
+- `SourceEncoding.UTF16BE`: UTF-16 Big Endian
+- `SourceEncoding.UTF32LE`: UTF-32 Little Endian
+- `SourceEncoding.UTF32BE`: UTF-32 Big Endian
+- `SourceEncoding.Latin1`: ISO-8859-1
+- `SourceEncoding.Windows1252`: Windows-1252 (Western European)
+- `SourceEncoding.AutoDetect`: Automatic detection from BOM or content analysis
+
+**Key Features:**
+- **BOM Detection**: Automatically identifies encoding from byte order marks
+- **Efficient Conversion**: Optimized algorithms for common encodings
+- **Fallback Support**: Graceful handling when specific encodings aren't available
+- **Zero-Copy Integration**: Seamlessly converts to UTF-8 for zero-copy processing
 
 ## Advanced Features
 
@@ -278,6 +327,123 @@ var view = new ZeroCopyStringView(utf8Data);
 
 var tokens = lexer.TokenizeRegexPattern(view);
 // Handles Unicode properties and code points
+```
+
+### Encoding Conversion
+
+#### Converting from UTF-16 to UTF-8
+
+```csharp
+using DevelApp.StepLexer;
+using System.Text;
+
+// Pattern in UTF-16 format
+var pattern = @"\d{2,4}-\w+";
+var utf16Bytes = Encoding.Unicode.GetBytes(pattern);
+
+// Convert to UTF-8 and parse
+var parser = new PatternParser(ParserType.Regex);
+bool success = parser.ParsePattern(utf16Bytes, SourceEncoding.UTF16LE, "pattern");
+
+if (success)
+{
+    var tokens = parser.GetTokens();
+    // Process tokens...
+}
+```
+
+#### Auto-Detecting Encoding from Stream
+
+```csharp
+using DevelApp.StepLexer;
+using System.IO;
+
+// Read pattern from file with unknown encoding
+var parser = new PatternParser(ParserType.Regex);
+using var stream = File.OpenRead("pattern.txt");
+
+// Auto-detect encoding and parse
+bool success = parser.ParsePatternFromStream(
+    stream, 
+    SourceEncoding.AutoDetect, 
+    "pattern"
+);
+
+if (success)
+{
+    Console.WriteLine("Pattern parsed successfully!");
+}
+```
+
+#### Manual Encoding Detection
+
+```csharp
+using DevelApp.StepLexer;
+
+// Read bytes from any source
+byte[] sourceBytes = File.ReadAllBytes("pattern.dat");
+
+// Detect encoding
+var detectedEncoding = EncodingConverter.DetectEncoding(sourceBytes);
+Console.WriteLine($"Detected encoding: {detectedEncoding}");
+
+// Convert to UTF-8
+byte[] utf8Bytes = EncodingConverter.ConvertToUTF8(
+    sourceBytes, 
+    detectedEncoding
+);
+
+// Parse as UTF-8
+var parser = new PatternParser(ParserType.Regex);
+parser.ParsePattern(utf8Bytes, "pattern");
+```
+
+#### Working with Latin-1 Encoded Files
+
+```csharp
+using DevelApp.StepLexer;
+using System.IO;
+
+// Pattern file encoded in ISO-8859-1 (Latin-1)
+byte[] latin1Bytes = File.ReadAllBytes("latin1_pattern.txt");
+
+// Convert and parse
+var parser = new PatternParser(ParserType.Regex);
+bool success = parser.ParsePattern(
+    latin1Bytes, 
+    SourceEncoding.Latin1, 
+    "latin1_pattern"
+);
+
+if (success)
+{
+    Console.WriteLine("Latin-1 pattern processed successfully!");
+}
+```
+
+#### Batch Conversion of Multiple Encodings
+
+```csharp
+using DevelApp.StepLexer;
+
+// Process patterns from different sources
+var encodings = new[]
+{
+    (File.ReadAllBytes("pattern_utf8.txt"), SourceEncoding.UTF8),
+    (File.ReadAllBytes("pattern_utf16.txt"), SourceEncoding.UTF16LE),
+    (File.ReadAllBytes("pattern_ascii.txt"), SourceEncoding.ASCII),
+    (File.ReadAllBytes("pattern_latin1.txt"), SourceEncoding.Latin1)
+};
+
+var parser = new PatternParser(ParserType.Regex);
+
+foreach (var (bytes, encoding) in encodings)
+{
+    if (parser.ParsePattern(bytes, encoding, "pattern"))
+    {
+        Console.WriteLine($"Successfully parsed {encoding} pattern");
+    }
+}
 ```
 
 ## Error Handling

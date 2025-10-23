@@ -11,6 +11,7 @@ ENFAStepLexer-StepParser is a complete parsing solution designed for high-perfor
 ### 🚀 DevelApp.StepLexer - Zero-Copy Tokenization
 - **Zero-copy architecture**: Memory-efficient string processing with ZeroCopyStringView
 - **UTF-8 native processing**: Direct UTF-8 handling without encoding conversions
+- **Encoding conversion**: Efficient conversion from various formats (ASCII, UTF-16, UTF-32, Latin-1, Windows-1252) to UTF-8
 - **Forward-only parsing**: Predictable performance without backtracking
 - **Comprehensive PCRE2 support**: 70+ regex features including Unicode and POSIX classes
 - **Ambiguity resolution**: Splittable tokens for handling parsing ambiguities
@@ -89,6 +90,37 @@ if (success)
     {
         Console.WriteLine($"{token.Type}: {token.Text}");
     }
+}
+```
+
+### StepLexer with Encoding Conversion
+
+```csharp
+using DevelApp.StepLexer;
+using System.Text;
+using System.IO;
+
+// Create a pattern parser
+var parser = new PatternParser(ParserType.Regex);
+
+// Parse pattern from UTF-16 encoded bytes
+var pattern = @"\w+@\w+\.\w+";
+var utf16Bytes = Encoding.Unicode.GetBytes(pattern);
+
+// Automatically converts UTF-16 to UTF-8 for processing
+bool success = parser.ParsePattern(utf16Bytes, SourceEncoding.UTF16LE, "email_pattern");
+
+// Or auto-detect encoding from stream
+using var stream = File.OpenRead("pattern.txt");
+bool streamSuccess = parser.ParsePatternFromStream(
+    stream, 
+    SourceEncoding.AutoDetect, 
+    "file_pattern"
+);
+
+if (success || streamSuccess)
+{
+    Console.WriteLine("Pattern parsed with encoding conversion!");
 }
 ```
 
