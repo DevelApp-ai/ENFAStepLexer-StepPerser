@@ -127,7 +127,18 @@ namespace DevelApp.StepParser
         private readonly StepParser _parser = new();
         private readonly GrammarLoader _grammarLoader = new();
         private readonly Dictionary<string, RefactoringOperation> _refactoringOps = new();
+        private readonly Dictionary<string, ISemanticActionHandler> _actionHandlers = new();
         private GrammarDefinition? _currentGrammar;
+
+        /// <summary>
+        /// Initializes a new instance of StepParserEngine with default action handlers
+        /// </summary>
+        public StepParserEngine()
+        {
+            // Register default semantic action handlers
+            RegisterActionHandler(new DefaultSemanticActionHandler());
+            RegisterActionHandler(new RoslynSemanticActionHandler());
+        }
 
         /// <summary>
         /// Current loaded grammar
@@ -138,6 +149,28 @@ namespace DevelApp.StepParser
         /// Current parse context
         /// </summary>
         public ParseContext Context => _parser.Context;
+
+        /// <summary>
+        /// Register a custom semantic action handler
+        /// </summary>
+        /// <param name="handler">The handler to register</param>
+        public void RegisterActionHandler(ISemanticActionHandler handler)
+        {
+            _actionHandlers[handler.Name] = handler;
+        }
+
+        /// <summary>
+        /// Get a registered action handler by name, or return the default handler
+        /// </summary>
+        /// <param name="name">The handler name, or null for default</param>
+        /// <returns>The action handler</returns>
+        public ISemanticActionHandler GetActionHandler(string? name = null)
+        {
+            if (string.IsNullOrEmpty(name) || !_actionHandlers.ContainsKey(name))
+                return _actionHandlers["default"];
+            
+            return _actionHandlers[name];
+        }
 
         /// <summary>
         /// Load grammar from file
@@ -568,9 +601,20 @@ namespace DevelApp.StepParser
         /// </summary>
         private bool TryFindNodeAtLocation(ICodeLocation location, out SymbolNode node)
         {
-            // This would need to search through the current CognitiveGraph
-            // For now, return false - in full implementation would traverse graph
             node = default;
+
+            // TODO: Implement spatial indexing as per TDS Section 6
+            // This requires:
+            // 1. Line-offset map for converting line/column to byte offset
+            // 2. CognitiveGraph BuildSpatialIndex() method (to be added in CognitiveGraph library)
+            // 3. CognitiveGraph FindNodesAt(byteOffset) method using interval tree
+            //
+            // Current implementation is a placeholder that returns false
+            // Full implementation will:
+            // - Convert ICodeLocation to byte offset using line-offset map
+            // - Call graph.FindNodesAt(byteOffset) to get candidate nodes
+            // - Filter results to find the most specific (smallest) node
+            
             return false;
         }
 
