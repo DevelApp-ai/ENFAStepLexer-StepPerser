@@ -603,17 +603,17 @@ namespace DevelApp.StepParser
         {
             node = default;
 
-            // TODO: Implement spatial indexing as per TDS Section 6
-            // This requires:
-            // 1. Line-offset map for converting line/column to byte offset
-            // 2. CognitiveGraph BuildSpatialIndex() method (to be added in CognitiveGraph library)
-            // 3. CognitiveGraph FindNodesAt(byteOffset) method using interval tree
+            // TODO: Implement spatial indexing query as per TDS Section 6
+            // Note: CognitiveGraph 1.0.2 already has spatial indexing built-in:
+            // - Spatial index is built automatically during CognitiveGraphBuilder.AddNode() when nodes have ByteOffset/ByteLength
+            // - The index is serialized in Build() and deserialized when loading
+            // - FindNodesAt(uint byteOffset) method is available on CognitiveGraph for querying
             //
-            // Current implementation is a placeholder that returns false
-            // Full implementation will:
-            // - Convert ICodeLocation to byte offset using line-offset map
-            // - Call graph.FindNodesAt(byteOffset) to get candidate nodes
-            // - Filter results to find the most specific (smallest) node
+            // This implementation requires:
+            // 1. Line-offset map for converting line/column to byte offset
+            // 2. Access to the current CognitiveGraph instance
+            // 3. Call graph.FindNodesAt(byteOffset) to get candidate nodes
+            // 4. Filter results to find the most specific (smallest) node
             
             return false;
         }
