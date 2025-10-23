@@ -198,9 +198,60 @@ jobs:
         echo "📦 Clean version packages are available in the release-packages artifact for manual publishing"
         echo "📦 Package names: DevelApp.StepLexer.${{ needs.calculate-release-version.outputs.releaseVersion }}.nupkg, DevelApp.StepParser.${{ needs.calculate-release-version.outputs.releaseVersion }}.nupkg"
 
+  publish-github-packages:
+    runs-on: ubuntu-latest
+    needs: [calculate-release-version, build-release-packages]
+    permissions:
+      contents: read
+      packages: write
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+        
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: ${{ env.DOTNET_VERSION }}
+        
+    - name: Download release packages
+      uses: actions/download-artifact@v4
+      with:
+        name: release-packages
+        path: ./packages
+        
+    - name: Set up NuGet authentication for GitHub Packages
+      run: |
+        dotnet nuget add source \
+          --username ${{ github.actor }} \
+          --password ${{ secrets.GITHUB_TOKEN }} \
+          --store-password-in-clear-text \
+          --name github "https://nuget.pkg.github.com/${{ github.repository_owner }}/index.json"
+          
+    - name: Publish release packages to GitHub Packages
+      run: |
+        RELEASE_VERSION="${{ needs.calculate-release-version.outputs.releaseVersion }}"
+        
+        echo "Publishing release packages to GitHub Packages:"
+        echo "  Release Version: $RELEASE_VERSION"
+        echo "  Event: push to main (merged PR)"
+        echo ""
+        echo "📦 Publishing RELEASE packages to GitHub Packages:"
+        ls -la ./packages/
+        
+        for package in ./packages/*.nupkg; do
+          echo "Publishing $package to GitHub Packages..."
+          dotnet nuget push "$package" \
+            --source github \
+            --api-key ${{ secrets.GITHUB_TOKEN }} \
+            --skip-duplicate || echo "Package already exists, skipping..."
+        done
+        
+        echo "✅ Release package publishing complete!"
+
   create-github-release:
     runs-on: ubuntu-latest
-    needs: [calculate-release-version, build-release-packages, publish-nuget-org]
+    needs: [calculate-release-version, build-release-packages, publish-nuget-org, publish-github-packages]
     permissions:
       contents: write
     steps:
