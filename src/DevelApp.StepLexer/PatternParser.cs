@@ -75,6 +75,38 @@ namespace DevelApp.StepLexer
         }
         
         /// <summary>
+        /// Parse pattern from bytes with specified source encoding, converting to UTF-8
+        /// </summary>
+        /// <param name="sourceBytes">Source bytes in the specified encoding</param>
+        /// <param name="sourceEncoding">Source encoding type</param>
+        /// <param name="terminalName">Terminal name for the pattern</param>
+        /// <returns>True if parsing succeeded, false otherwise</returns>
+        public bool ParsePattern(ReadOnlySpan<byte> sourceBytes, SourceEncoding sourceEncoding, string terminalName)
+        {
+            // Convert to UTF-8 if needed
+            byte[] utf8Bytes;
+            if (sourceEncoding == SourceEncoding.UTF8)
+            {
+                utf8Bytes = sourceBytes.ToArray();
+            }
+            else
+            {
+                utf8Bytes = EncodingConverter.ConvertToUTF8(sourceBytes, sourceEncoding);
+            }
+            
+            _inputBuffer = utf8Bytes;
+            return ParsePattern(utf8Bytes.AsSpan(), terminalName);
+        }
+        
+        /// <summary>
+        /// Parse pattern from byte array with specified source encoding
+        /// </summary>
+        public bool ParsePattern(byte[] sourceBytes, SourceEncoding sourceEncoding, string terminalName)
+        {
+            return ParsePattern(sourceBytes.AsSpan(), sourceEncoding, terminalName);
+        }
+        
+        /// <summary>
         /// Parse pattern from stream with zero-copy approach
         /// </summary>
         public bool ParsePatternFromStream(Stream stream, string terminalName)
@@ -94,6 +126,49 @@ namespace DevelApp.StepLexer
             }
             
             // Phase 2: Disambiguation and ENFA construction  
+            if (!_stepLexer.Phase2_Disambiguation())
+            {
+                return false;
+            }
+            
+            return true;
+        }
+        
+        /// <summary>
+        /// Parse pattern from stream with automatic encoding detection
+        /// </summary>
+        /// <param name="stream">Input stream containing the pattern</param>
+        /// <param name="sourceEncoding">Source encoding (use AutoDetect for automatic detection)</param>
+        /// <param name="terminalName">Terminal name for the pattern</param>
+        /// <returns>True if parsing succeeded, false otherwise</returns>
+        public bool ParsePatternFromStream(Stream stream, SourceEncoding sourceEncoding, string terminalName)
+        {
+            // Read entire stream into memory
+            using var memoryStream = new MemoryStream();
+            stream.CopyTo(memoryStream);
+            var sourceBytes = memoryStream.ToArray();
+            
+            // Convert to UTF-8 if needed
+            byte[] utf8Bytes;
+            if (sourceEncoding == SourceEncoding.UTF8)
+            {
+                utf8Bytes = sourceBytes;
+            }
+            else
+            {
+                utf8Bytes = EncodingConverter.ConvertToUTF8(sourceBytes, sourceEncoding);
+            }
+            
+            _inputBuffer = utf8Bytes;
+            var inputView = new ZeroCopyStringView(_inputBuffer);
+            
+            // Phase 1: Fast lexical analysis
+            if (!_stepLexer.Phase1_LexicalScan(inputView))
+            {
+                return false;
+            }
+            
+            // Phase 2: Disambiguation and ENFA construction
             if (!_stepLexer.Phase2_Disambiguation())
             {
                 return false;
