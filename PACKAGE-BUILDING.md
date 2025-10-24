@@ -103,13 +103,42 @@ The repository uses a split CI/CD pipeline approach to ensure clean release pack
 - Creates GitHub releases with proper versioning
 
 ### Version Management
+
+#### GitVersion Configuration
 - Uses GitVersion for semantic versioning with enhanced PR context detection
+- Version is controlled by `GitVersion.yml` in the repository root
+- The `next-version` field in `GitVersion.yml` determines the base version
+
+#### How to Increment Versions
+To release a new version (e.g., from 1.0.1 to 1.0.2):
+
+1. **Update GitVersion.yml**:
+   ```bash
+   # Edit GitVersion.yml and change next-version
+   # From: next-version: 1.0.1
+   # To:   next-version: 1.0.2
+   ```
+
+2. **Commit and merge to main**:
+   ```bash
+   git add GitVersion.yml
+   git commit -m "Increment version to 1.0.2"
+   git push
+   ```
+
+3. **The CD pipeline will automatically**:
+   - Create a new release tag `v1.0.2`
+   - Build and publish packages to NuGet.org
+   - Publish packages to GitHub Packages
+   - Create a GitHub release with the new version
+
+#### Version Types
 - **CI pipeline versioning strategy**:
-  - Direct pushes: Uses GitVersion output (may include CI suffixes like `1.0.1-ci0004`)  
-  - PRs to main: Beta versions (e.g., `1.0.1-beta.42`)
-  - PRs to other branches: Alpha versions (e.g., `1.0.1-alpha.15`)
+  - Direct pushes: Uses GitVersion output (may include CI suffixes like `1.0.2-ci0004`)  
+  - PRs to main: Beta versions (e.g., `1.0.2-beta.42`)
+  - PRs to other branches: Alpha versions (e.g., `1.0.2-alpha.15`)
 - **CD pipeline**: Extracts clean version using `sed 's/-.*$//'` to remove suffixes
-- This ensures release packages have clean names like `1.0.1` for NuGet.org while providing appropriate pre-release versions for development workflows
+- This ensures release packages have clean names like `1.0.2` for NuGet.org while providing appropriate pre-release versions for development workflows
 
 ### Pipeline Separation Benefits
 - Prevents GitVersion reuse between PR builds and release builds
