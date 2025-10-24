@@ -106,39 +106,45 @@ The repository uses a split CI/CD pipeline approach to ensure clean release pack
 
 #### GitVersion Configuration
 - Uses GitVersion for semantic versioning with enhanced PR context detection
-- Version is controlled by `GitVersion.yml` in the repository root
-- The `next-version` field in `GitVersion.yml` determines the base version
+- Version is **automatically calculated** based on git tags and commit history
+- The `increment` field in `GitVersion.yml` determines how versions increment (Minor by default)
 
-#### How to Increment Versions
-To release a new version (e.g., from 1.0.1 to 1.0.2):
+#### How Automatic Versioning Works
+GitVersion automatically calculates versions based on:
+1. **Latest git tag** (e.g., `v1.0.1`)
+2. **Commits since tag** (counts commits to determine if version needs increment)
+3. **Branch increment strategy** (defined in `GitVersion.yml`)
 
-1. **Update GitVersion.yml**:
-   ```bash
-   # Edit GitVersion.yml and change next-version
-   # From: next-version: 1.0.1
-   # To:   next-version: 1.0.2
-   ```
+**No manual version updates needed!** Just merge to main and GitVersion handles the rest.
 
-2. **Commit and merge to main**:
-   ```bash
-   git add GitVersion.yml
-   git commit -m "Increment version to 1.0.2"
-   git push
-   ```
+#### Version Increment Behavior
+With `increment: Minor` on main branch:
+- Merge to main → `1.0.1` → `1.1.0` → `1.2.0` → ...
+- Each merge automatically bumps the minor version
 
-3. **The CD pipeline will automatically**:
-   - Create a new release tag `v1.0.2`
-   - Build and publish packages to NuGet.org
-   - Publish packages to GitHub Packages
-   - Create a GitHub release with the new version
+To change increment behavior, edit `GitVersion.yml`:
+```yaml
+branches:
+  main:
+    increment: Minor  # Options: Major, Minor, Patch, None
+```
 
-#### Version Types
+#### For Major Version Changes
+Create a new tag manually:
+```bash
+git tag v2.0.0
+git push --tags
+```
+
+Then GitVersion will base future versions on this tag.
+
+#### Version Types in CI/CD
 - **CI pipeline versioning strategy**:
-  - Direct pushes: Uses GitVersion output (may include CI suffixes like `1.0.2-ci0004`)  
-  - PRs to main: Beta versions (e.g., `1.0.2-beta.42`)
-  - PRs to other branches: Alpha versions (e.g., `1.0.2-alpha.15`)
+  - Direct pushes: Uses GitVersion output (may include CI suffixes like `1.1.0-ci0004`)  
+  - PRs to main: Beta versions (e.g., `1.1.0-beta.42`)
+  - PRs to other branches: Alpha versions (e.g., `1.1.0-alpha.15`)
 - **CD pipeline**: Extracts clean version using `sed 's/-.*$//'` to remove suffixes
-- This ensures release packages have clean names like `1.0.2` for NuGet.org while providing appropriate pre-release versions for development workflows
+- This ensures release packages have clean names like `1.1.0` for NuGet.org while providing appropriate pre-release versions for development workflows
 
 ### Pipeline Separation Benefits
 - Prevents GitVersion reuse between PR builds and release builds
