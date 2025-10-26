@@ -85,11 +85,9 @@ bool success = parser.ParsePattern(utf8Pattern, "email_pattern");
 if (success)
 {
     Console.WriteLine("Pattern compiled successfully!");
-    var tokens = parser.GetTokens();
-    foreach (var token in tokens)
-    {
-        Console.WriteLine($"{token.Type}: {token.Text}");
-    }
+    var results = parser.GetResults();
+    Console.WriteLine($"Phase 1 tokens: {results.Phase1TokenCount}");
+    Console.WriteLine($"Ambiguous tokens: {results.AmbiguousTokenCount}");
 }
 ```
 

@@ -34,18 +34,20 @@ The main parser engine that coordinates all parsing operations.
 public class StepParserEngine
 {
     // Grammar management
-    public void LoadGrammarFromFile(string grammarFilePath);
-    public void LoadGrammarFromContent(string grammarContent);
+    public void LoadGrammar(string grammarFile);
+    public void LoadGrammarFromContent(string grammarContent, string fileName = "inline");
     public GrammarDefinition? CurrentGrammar { get; }
     
     // Parsing operations
-    public StepParsingResult Parse(string sourceCode);
-    public StepParsingResult Parse(List<StepToken> tokens);
+    public StepParsingResult Parse(string input, string fileName = "");
+    public CognitiveGraph.CognitiveGraph ParseAndMerge(
+        CognitiveGraph.CognitiveGraph existingGraph, 
+        string input, 
+        string fileName = "");
+    public StepParsingResult ParseMultipleFiles(Dictionary<string, string> files);
     
     // Context management
-    public void PushContext(string contextName);
-    public void PopContext();
-    public string CurrentContext { get; }
+    public ParseContext Context { get; }
 }
 ```
 
@@ -369,7 +371,7 @@ using DevelApp.StepLexer;
 var engine = new StepParserEngine();
 
 // Load grammar from file
-engine.LoadGrammarFromFile("my_language.grammar");
+engine.LoadGrammar("my_language.grammar");
 
 // Parse source code
 var sourceCode = @"
@@ -383,11 +385,13 @@ if (result.Success)
 {
     Console.WriteLine("Parse successful!");
     Console.WriteLine($"Tokens: {result.Tokens.Count}");
-    Console.WriteLine($"Parse tree nodes: {result.ParseTree?.NodeCount}");
     
     // Access semantic information
     var cognitiveGraph = result.CognitiveGraph;
-    var assignments = cognitiveGraph?.Query("assignment");
+    if (cognitiveGraph != null)
+    {
+        Console.WriteLine("CognitiveGraph constructed successfully!");
+    }
 }
 else
 {
@@ -423,9 +427,12 @@ TokenSplitter: Space
 engine.LoadGrammarFromContent(grammar);
 
 // Parse with context awareness
-engine.PushContext("method_call");
 var result = engine.Parse("myMethod(arg1, arg2)");
-engine.PopContext();
+
+// Access the parse context
+var context = engine.Context;
+Console.WriteLine($"Current context: {context.ContextStack.Current()}");
+```
 ```
 
 ### Symbol Table Integration
