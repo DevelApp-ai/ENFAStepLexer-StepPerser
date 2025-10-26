@@ -32,26 +32,26 @@ DevelApp.StepLexer is a zero-copy, UTF-8 native lexical analyzer designed for hi
 
 ### StepLexer Class
 
-The main lexical analyzer that processes input text and generates tokens.
+The main lexical analyzer that processes input text and generates tokens using a two-phase approach.
 
 ```csharp
 public class StepLexer
 {
-    // Core tokenization methods
-    public (SplittableToken token, int newPosition) TokenizeNext(
-        ZeroCopyStringView input, 
-        int position = 0);
+    // Two-phase tokenization methods
+    public bool Phase1_LexicalScan(ZeroCopyStringView input);
+    public bool Phase2_Disambiguation();
     
-    // Pattern-specific tokenization
-    public List<SplittableToken> TokenizeRegexPattern(
-        ZeroCopyStringView pattern);
+    // Configuration
+    public void AddRule(TokenRule rule);
+    public void Initialize(ReadOnlyMemory<byte> input, string fileName = "");
 }
 ```
 
 **Key Methods:**
-- `TokenizeNext()`: Processes the next token from input
-- `TokenizeRegexPattern()`: Specialized regex pattern tokenization
-- `Reset()`: Resets lexer state for new input
+- `Phase1_LexicalScan()`: Fast lexical analysis with ambiguity detection
+- `Phase2_Disambiguation()`: Resolves ambiguities and constructs final token stream
+- `AddRule()`: Adds a token rule to the lexer
+- `Initialize()`: Initializes the lexer with input data
 
 ### SplittableToken Class
 
@@ -104,73 +104,40 @@ public readonly struct ZeroCopyStringView : IEquatable<ZeroCopyStringView>
 
 ### TokenType Enumeration
 
-Comprehensive token classification system supporting PCRE2 features.
+Token classification system for regex patterns and source code.
 
 ```csharp
 public enum TokenType
 {
-    // Basic constructs
-    Literal,
-    AnyChar,
-    CharacterClass,
-    NegatedCharacterClass,
+    // Regex pattern tokens
+    Literal,              // Literal character token in regex patterns
+    EscapeSequence,       // Escape sequence token (e.g., \n, \t, \\)
+    CharacterClass,       // Character class token (e.g., [a-z], [^0-9])
+    GroupStart,           // Group start token (opening parenthesis)
+    GroupEnd,             // Group end token (closing parenthesis)
+    SpecialGroup,         // Special group token (e.g., (?:), (?=), (?!))
+    Quantifier,           // Quantifier token (e.g., *, +, ?, {n,m})
+    LazyQuantifier,       // Lazy quantifier token (e.g., *?, +?, ??)
+    Alternation,          // Alternation token (pipe symbol |)
+    StartAnchor,          // Start anchor token (caret ^)
+    EndAnchor,            // End anchor token (dollar sign $)
+    AnyChar,              // Any character token (dot .)
+    HexEscape,            // Hexadecimal escape token (e.g., \x41)
+    UnicodeEscape,        // Unicode escape token (e.g., \u0041, \U00000041)
+    UnicodeProperty,      // Unicode property token (e.g., \p{L}, \P{N})
+    InlineModifier,       // Inline modifier token (e.g., (?i), (?m), (?s))
+    LiteralText,          // Literal text token in \Q...\E construct
+    RegexComment,         // Comment token in (?#...) construct
     
-    // Quantifiers
-    ZeroOrMore,
-    OneOrMore,
-    ZeroOrOne,
-    ExactCount,
-    RangeCount,
-    
-    // Anchors
-    StartAnchor,
-    EndAnchor,
-    WordBoundary,
-    NonWordBoundary,
-    StringStart,      // \A
-    StringEnd,        // \Z
-    AbsoluteEnd,      // \z
-    ContinuePosition, // \G
-    
-    // Groups and assertions
-    GroupStart,
-    GroupEnd,
-    NonCapturingGroup,
-    NamedGroup,
-    PositiveLookahead,
-    NegativeLookahead,
-    PositiveLookbehind,
-    NegativeLookbehind,
-    
-    // Character classes and escapes
-    WordChar,         // \w
-    NonWordChar,      // \W
-    Digit,            // \d
-    NonDigit,         // \D
-    Whitespace,       // \s
-    NonWhitespace,    // \S
-    
-    // Unicode support
-    UnicodeCodePoint, // \x{FFFF}
-    UnicodeProperty,  // \p{property}
-    UnicodeCategory,  // \P{property}
-    UnicodeNewline,   // \R
-    
-    // POSIX character classes
-    PosixAlpha,       // [:alpha:]
-    PosixDigit,       // [:digit:]
-    PosixSpace,       // [:space:]
-    PosixLower,       // [:lower:]
-    PosixUpper,       // [:upper:]
-    
-    // Advanced features
-    BackReference,
-    NamedBackReference,
-    Alternation,
-    
-    // Special tokens
-    Error,
-    EndOfInput
+    // Source code tokens
+    Identifier,           // Identifier token in source code
+    Number,               // Numeric literal token
+    String,               // String literal token
+    Keyword,              // Keyword token (language-specific reserved words)
+    Operator,             // Operator token (arithmetic, logical, assignment operators)
+    Whitespace,           // Whitespace token (spaces, tabs, line breaks)
+    Comment,              // Comment token (single-line and multi-line comments)
+    Punctuation           // Punctuation token (semicolons, commas, brackets)
 }
 ```
 
@@ -320,20 +287,22 @@ Comprehensive Unicode handling with zero-copy efficiency:
 using DevelApp.StepLexer;
 using System.Text;
 
-// Create lexer
-var lexer = new StepLexer();
+// Create pattern parser
+var parser = new PatternParser(ParserType.Regex);
 
 // Prepare UTF-8 input
 var pattern = @"\d{2,4}-\w+@[a-z]+\.com";
 var utf8Data = Encoding.UTF8.GetBytes(pattern);
-var input = new ZeroCopyStringView(utf8Data);
 
-// Tokenize
-var tokens = lexer.TokenizeRegexPattern(input);
+// Parse the pattern
+bool success = parser.ParsePattern(utf8Data.AsSpan(), "email_pattern");
 
-foreach (var token in tokens)
+if (success)
 {
-    Console.WriteLine($"{token.Type}: {token.Text}");
+    var results = parser.GetResults();
+    Console.WriteLine($"Phase 1 tokens: {results.Phase1TokenCount}");
+    Console.WriteLine($"Ambiguous tokens: {results.AmbiguousTokenCount}");
+    Console.WriteLine($"Parsing: {(success ? "SUCCESS" : "FAILED")}");
 }
 ```
 
@@ -353,8 +322,9 @@ bool success = parser.ParsePattern(utf8Pattern, "identifier");
 
 if (success)
 {
-    var tokens = parser.GetTokens();
-    // Process tokens...
+    var results = parser.GetResults();
+    Console.WriteLine($"Pattern parsed successfully!");
+    Console.WriteLine($"Phase 1 tokens: {results.Phase1TokenCount}");
 }
 ```
 
@@ -364,10 +334,14 @@ if (success)
 // Unicode-aware pattern
 var unicodePattern = @"\p{L}+\x{20}\p{N}+";
 var utf8Data = Encoding.UTF8.GetBytes(unicodePattern);
-var view = new ZeroCopyStringView(utf8Data);
 
-var tokens = lexer.TokenizeRegexPattern(view);
-// Handles Unicode properties and code points
+var parser = new PatternParser(ParserType.Regex);
+bool success = parser.ParsePattern(utf8Data.AsSpan(), "unicode_pattern");
+
+if (success)
+{
+    Console.WriteLine("Unicode pattern parsed successfully!");
+}
 ```
 
 ### Encoding Conversion
