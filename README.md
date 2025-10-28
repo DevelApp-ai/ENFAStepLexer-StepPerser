@@ -274,6 +274,7 @@ ENFAStepLexer-StepPerser/
 - [**StepParser Documentation**](docs/StepParser.md) - Complete semantic parsing and CognitiveGraph integration
 - [**PCRE2 Support Matrix**](docs/PCRE2-Support.md) - Feature compatibility and exclusion explanations
 - [**Grammar Creation Guide**](docs/Grammar_File_Creation_Guide.md) - DSL development and grammar authoring
+- [**Sound-as-Code Report**](docs/Sound-as-Code.md) - Feasibility analysis for audio input and voice programming
 
 ### Quick Navigation
 - **Getting Started**: See [Quick Start](#quick-start) section above
@@ -353,6 +354,7 @@ The StepLexer-StepParser architecture provides:
 - [ ] Incremental parsing algorithms
 - [ ] Advanced semantic analysis techniques
 - [ ] Cross-language grammar compilation
+- [ ] Sound-as-Code: Audio input processing and voice programming (see [Sound-as-Code Report](docs/Sound-as-Code.md))
 
 ## License
 
