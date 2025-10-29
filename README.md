@@ -280,6 +280,8 @@ ENFAStepLexer-StepPerser/
 - **Architecture Overview**: [Architecture](#architecture) section
 - **Feature Support**: [PCRE2 Feature Support](#pcre2-feature-support) section
 - **Performance**: [Performance](#performance) section
+- **GitHub Pages**: [https://develapp-ai.github.io/ENFAStepLexer-StepPerser/](https://develapp-ai.github.io/ENFAStepLexer-StepPerser/)
+- **Sitemap**: [https://develapp-ai.github.io/ENFAStepLexer-StepPerser/sitemap.xml](https://develapp-ai.github.io/ENFAStepLexer-StepPerser/sitemap.xml)
 
 ## Contributing
 
