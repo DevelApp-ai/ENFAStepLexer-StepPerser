@@ -6,6 +6,7 @@ using System.Text;
 using DevelApp.StepLexer;
 using CognitiveGraph;
 using CognitiveGraph.Accessors;
+using CognitiveGraph.Schema;
 
 namespace DevelApp.StepParser
 {
@@ -124,10 +125,11 @@ namespace DevelApp.StepParser
     public class StepParserEngine : IDisposable
     {
         private readonly DevelApp.StepLexer.StepLexer _lexer = new();
-        private readonly StepParser _parser = new();
+        private readonly StepParser _parser;
         private readonly GrammarLoader _grammarLoader = new();
         private readonly Dictionary<string, RefactoringOperation> _refactoringOps = new();
         private readonly Dictionary<string, ISemanticActionHandler> _actionHandlers = new();
+        private readonly SchemaVersion _schemaVersion;
         private GrammarDefinition? _currentGrammar;
         private CognitiveGraph.CognitiveGraph? _lastParsedGraph;
         private string _lastSourceText = string.Empty;
@@ -136,8 +138,12 @@ namespace DevelApp.StepParser
         /// <summary>
         /// Initializes a new instance of StepParserEngine with default action handlers
         /// </summary>
-        public StepParserEngine()
+        /// <param name="schemaVersion">The CognitiveGraph schema version to use (default: V1 for backward compatibility)</param>
+        public StepParserEngine(SchemaVersion schemaVersion = SchemaVersion.V1)
         {
+            _schemaVersion = schemaVersion;
+            _parser = new StepParser(schemaVersion);
+            
             // Register default semantic action handlers
             RegisterActionHandler(new DefaultSemanticActionHandler());
             RegisterActionHandler(new RoslynSemanticActionHandler());
