@@ -410,10 +410,21 @@ namespace DevelApp.StepParser
         private readonly List<ProductionRule> _grammar = new();
         private readonly List<ParserPath> _activePaths = new();
         private readonly ParseContext _context = new();
-        private readonly CognitiveGraphBuilder _graphBuilder = new();
+        private readonly CognitiveGraphBuilder _graphBuilder;
+        private readonly SchemaVersion _schemaVersion;
         private int _nextPathId = 0;
         private ushort _nextSymbolId = 1;
         private string _sourceText = "";
+
+        /// <summary>
+        /// Initializes a new instance of StepParser with the specified schema version
+        /// </summary>
+        /// <param name="schemaVersion">The CognitiveGraph schema version to use (default: V1)</param>
+        public StepParser(SchemaVersion schemaVersion = SchemaVersion.V1)
+        {
+            _schemaVersion = schemaVersion;
+            _graphBuilder = new CognitiveGraphBuilder(new GraphBuilderOptions { Schema = schemaVersion });
+        }
 
         /// <summary>
         /// Active parsing paths

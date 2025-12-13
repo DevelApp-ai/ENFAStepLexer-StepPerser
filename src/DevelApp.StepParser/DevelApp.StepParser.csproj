@@ -13,6 +13,7 @@
     
     <!-- Package Information -->
     <PackageId>DevelApp.StepParser</PackageId>
+    <Version>1.2.0</Version>
     <Title>Step Parser - GLR-Style Multi-Path Parsing with CognitiveGraph Integration</Title>
     <Description>A modern parser implementation with GLR-style multi-path parsing, context-sensitive grammar support, and CognitiveGraph integration for advanced semantic analysis. Part of the GrammarForge step-parser architecture.</Description>
     <Authors>DevelApp</Authors>
@@ -31,6 +32,13 @@
     
     <!-- Release Notes -->
     <PackageReleaseNotes>
+      v1.2.0: 
+      - UPDATED: CognitiveGraph dependency to 1.1.0 with V2 schema support for massive graphs
+      - NEW: Support for both V1 and V2 CognitiveGraph schemas
+      - NEW: Configurable schema version in StepParserEngine constructor
+      - ENHANCED: Backward compatibility maintained with V1 schema as default
+      - ENHANCED: Extended test coverage for V2 schema integration
+      
       v1.0.1: 
       - NEW: StepParser with GLR-style multi-path parsing for ambiguity resolution
       - NEW: Context-sensitive grammar support with hierarchical scopes
@@ -49,7 +57,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\DevelApp.StepLexer\DevelApp.StepLexer.csproj" />
-    <PackageReference Include="DevelApp.CognitiveGraph" Version="1.0.2" />
+    <PackageReference Include="DevelApp.CognitiveGraph" Version="1.1.0" />
   </ItemGroup>
 
   <ItemGroup>

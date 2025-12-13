@@ -6,7 +6,7 @@ using System.Collections.Generic;
 namespace DevelApp.StepParser.Tests
 {
     /// <summary>
-    /// Tests for CognitiveGraph 1.0.2 integration features
+    /// Tests for CognitiveGraph 1.1.0 integration features (V1 schema)
     /// </summary>
     public class CognitiveGraphIntegrationTests
     {
@@ -184,7 +184,7 @@ Grammar: TestGrammar
         }
 
         [Fact]
-        public void CognitiveGraphIntegration_SupportsVersion102()
+        public void CognitiveGraphIntegration_SupportsVersion110()
         {
             // Arrange & Act
             var engine = new StepParserEngine();
@@ -193,7 +193,7 @@ Grammar: TestGrammar
 <NUMBER> ::= /[0-9]+/
 ";
             
-            // This should work with CognitiveGraph 1.0.2
+            // This should work with CognitiveGraph 1.1.0
             engine.LoadGrammarFromContent(grammar);
             var result = engine.Parse("123", "test.txt");
 
