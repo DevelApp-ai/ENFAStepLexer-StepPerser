@@ -18,6 +18,7 @@ ENFAStepLexer-StepParser is a complete parsing solution designed for high-perfor
 
 ### 🧠 DevelApp.StepParser - Semantic Analysis
 - **CognitiveGraph integration**: Automatic semantic graph construction during parsing
+- **V1/V2 schema support**: Compatible with CognitiveGraph 1.1.0 for massive cognitive graphs
 - **GLR-style parsing**: Handles ambiguous grammars efficiently
 - **Context-sensitive grammars**: Hierarchical context management for complex languages
 - **Symbol table management**: Scope-aware symbol tracking and resolution
@@ -161,6 +162,46 @@ if (result.Success)
     var cognitiveGraph = result.CognitiveGraph;
     // Access semantic analysis results
 }
+```
+
+### StepParser with CognitiveGraph V2 Schema
+
+CognitiveGraph 1.1.0 introduces a V2 schema optimized for massive cognitive graphs. StepParser supports both V1 (default) and V2 schemas:
+
+```csharp
+using DevelApp.StepParser;
+using CognitiveGraph.Schema;
+
+// Create parser engine with V2 schema for massive graphs
+var engine = new StepParserEngine(SchemaVersion.V2);
+
+var grammar = @"
+Grammar: LargeCodebase
+<NUMBER> ::= /[0-9]+/
+<IDENTIFIER> ::= /[a-zA-Z][a-zA-Z0-9]*/
+<expression> ::= <NUMBER> | <IDENTIFIER>
+";
+
+engine.LoadGrammarFromContent(grammar);
+
+// Parse multiple files and build a massive cognitive graph
+var files = new Dictionary<string, string>
+{
+    { "module1.txt", "identifier1" },
+    { "module2.txt", "identifier2" },
+    // ... thousands more files
+};
+
+var result = engine.ParseMultipleFiles(files);
+
+if (result.Success)
+{
+    Console.WriteLine($"Schema Version: {result.CognitiveGraph.SchemaVersion}"); // V2
+    // Work with massive cognitive graph optimized for large codebases
+}
+
+// Default constructor maintains backward compatibility with V1
+var engineV1 = new StepParserEngine(); // Uses SchemaVersion.V1
 ```
 
 ## Architecture
