@@ -13,6 +13,7 @@
     
     <!-- Package Information -->
     <PackageId>DevelApp.StepLexer</PackageId>
+    <Version>1.13.0</Version>
     <Title>Step Lexer - Advanced UTF-8 Tokenization with Multi-Path Support</Title>
     <Description>A modern lexer implementation with zero-copy UTF-8 processing, two-phase regex pattern parsing, and multi-path tokenization for handling ambiguous input. Part of the GrammarForge step-parser architecture.</Description>
     <Authors>DevelApp</Authors>
