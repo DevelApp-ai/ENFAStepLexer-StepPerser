@@ -1,5 +1,11 @@
 # ENFAStepLexer-StepParser
 
+![CI](https://github.com/DevelApp-ai/ENFAStepLexer-StepPerser/actions/workflows/ci.yml/badge.svg)
+![CD](https://github.com/DevelApp-ai/ENFAStepLexer-StepPerser/actions/workflows/cd.yml/badge.svg)
+![NuGet StepLexer](https://img.shields.io/nuget/v/DevelApp.StepLexer.svg?label=DevelApp.StepLexer)
+![NuGet StepParser](https://img.shields.io/nuget/v/DevelApp.StepParser.svg?label=DevelApp.StepParser)
+
+
 A modern, high-performance lexical analysis and parsing system with comprehensive PCRE2 support and CognitiveGraph integration. The system consists of DevelApp.StepLexer for zero-copy tokenization and DevelApp.StepParser for semantic analysis and grammar-based parsing.
 
 ## Overview
@@ -26,7 +32,8 @@ ENFAStepLexer-StepParser is a complete parsing solution designed for high-perfor
 
 ### 🔧 Advanced Pattern Support
 - **Basic regex constructs**: Literals, character classes, quantifiers, alternation
-- **Extended anchors**: `\A`, `\Z`, `\z`, `\G` for precise boundary matching
+- **Extended anchors**: `\A`, `\Z`, `\z`, `\G` for precise boundary match
+ing
 - **Unicode support**: `\x{FFFF}` code points, `\p{property}` classes, `\R` newlines
 - **POSIX character classes**: `[:alpha:]`, `[:digit:]`, `[:space:]`, etc.
 - **Groups & assertions**: Capturing groups, lookahead/lookbehind, named groups
@@ -96,7 +103,8 @@ if (success)
 
 ```csharp
 using DevelApp.StepLexer;
-using System.Text;
+using Sys
+tem.Text;
 using System.IO;
 
 // Create a pattern parser
@@ -173,7 +181,8 @@ using DevelApp.StepParser;
 using CognitiveGraph.Schema;
 
 // Create parser engine with V2 schema for massive graphs
-var engine = new StepParserEngine(SchemaVersion.V2);
+var engine = new StepParserEngine(Sch
+emaVersion.V2);
 
 var grammar = @"
 Grammar: LargeCodebase
@@ -234,7 +243,8 @@ The system uses a two-phase processing approach:
 2. **Semantic Analysis Phase (StepParser)**:
    - Grammar-based syntax tree construction
    - CognitiveGraph integration for semantic analysis
-   - Context-sensitive parsing with scope management
+   - Context-sensitive p
+arsing with scope management
    - Symbol table construction and resolution
 
 ### Design Philosophy
@@ -285,7 +295,8 @@ See [docs/PCRE2-Support.md](docs/PCRE2-Support.md) for complete feature matrix a
 ```
 ENFAStepLexer-StepPerser/
 ├── src/
-│   ├── DevelApp.StepLexer/           # Zero-copy lexical analyzer
+│   ├── DevelApp.StepLexer/           # Zero-copy 
+lexical analyzer
 │   │   ├── StepLexer.cs              # Core tokenization engine
 │   │   ├── PatternParser.cs          # High-level pattern controller
 │   │   ├── ZeroCopyStringView.cs     # Memory-efficient string operations
@@ -321,7 +332,8 @@ ENFAStepLexer-StepPerser/
 - **Architecture Overview**: [Architecture](#architecture) section
 - **Feature Support**: [PCRE2 Feature Support](#pcre2-feature-support) section
 - **Performance**: [Performance](#performance) section
-- **GitHub Pages**: [https://develapp-ai.github.io/ENFAStepLexer-StepPerser/](https://develapp-ai.github.io/ENFAStepLexer-StepPerser/)
+- **GitHub Pages**: [https://develapp-ai.github.io/ENFAStepLexer-
+StepPerser/](https://develapp-ai.github.io/ENFAStepLexer-StepPerser/)
 - **Sitemap**: [https://develapp-ai.github.io/ENFAStepLexer-StepPerser/sitemap.xml](https://develapp-ai.github.io/ENFAStepLexer-StepPerser/sitemap.xml)
 
 ## Contributing
@@ -365,6 +377,7 @@ The StepLexer-StepParser architecture provides:
 ### Benchmarks
 - **Compilation speed**: Direct pattern-to-token conversion
 - **Memory usage**: Minimal allocations with zero-copy design  
+
 - **Scalability**: Linear performance characteristics for typical patterns
 - **Throughput**: High-performance processing for large codebases
 
